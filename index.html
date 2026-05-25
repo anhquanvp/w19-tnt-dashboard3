@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>W19 – Vùng TNT Full Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Be+Vietnam+Pro:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:#0d0d0c; --bg2:#161614; --bg3:#1e1e1c; --border:#272725;
+  --text:#e4e2d8; --muted:#6e6c63; --muted2:#9a9890;
+  --red:#e05555; --amber:#d4913a; --green:#5fa84a; --blue:#4b8fd0; --purple:#9370c8;
+  --red-a:rgba(224,85,85,0.14); --amber-a:rgba(212,145,58,0.14); --green-a:rgba(95,168,74,0.14); --blue-a:rgba(75,143,208,0.12);
+  --mono:'IBM Plex Mono',monospace; --sans:'Be Vietnam Pro',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13.5px;line-height:1.55;}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 18px 72px;}
+
+/* Header */
+.hdr{padding-bottom:20px;margin-bottom:30px;border-bottom:1px solid var(--border);}
+.hdr-eye{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px;}
+.hdr-h1{font-size:22px;font-weight:600;letter-spacing:-.02em;}
+.hdr-sub{font-size:12px;color:var(--muted);margin-top:4px;}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;}
+.pill{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:2px;border:1px solid;}
+.pr{background:var(--red-a);color:var(--red);border-color:rgba(224,85,85,.25);}
+.pa{background:var(--amber-a);color:var(--amber);border-color:rgba(212,145,58,.25);}
+.pg{background:var(--green-a);color:var(--green);border-color:rgba(95,168,74,.25);}
+.pb{background:var(--blue-a);color:var(--blue);border-color:rgba(75,143,208,.25);}
+
+/* Section */
+.sec{margin-bottom:38px;}
+.sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.sec-n{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid var(--border);padding:2px 7px;border-radius:2px;}
+.sec-t{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2);}
+
+/* KPI */
+.kgrid{display:grid;gap:10px;margin-bottom:14px;}
+.g4{grid-template-columns:repeat(4,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g5{grid-template-columns:repeat(5,1fr);}
+.kpi{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:12px 14px;}
+.kl{font-size:11px;color:var(--muted);margin-bottom:4px;}
+.kv{font-family:var(--mono);font-size:20px;font-weight:600;}
+.ks{font-size:11px;margin-top:4px;}
+.vr{color:var(--red);} .va{color:var(--amber);} .vg{color:var(--green);} .vb{color:var(--blue);}
+
+/* tag */
+.tag{display:inline-block;font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:2px;}
+.tgr{background:var(--red-a);color:var(--red);}
+.tgg{background:var(--green-a);color:var(--green);}
+.tga{background:var(--amber-a);color:var(--amber);}
+
+/* Chart box */
+.cb{background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:14px 16px;margin-bottom:12px;}
+.ct{font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:10px;}
+.cw{position:relative;width:100%;}
+.lg{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:7px;font-size:11.5px;color:var(--muted);}
+.lg span{display:flex;align-items:center;gap:5px;}
+.ld{width:10px;height:10px;border-radius:2px;display:inline-block;}
+
+/* Two/Three col */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+
+/* AM bar rows */
+.br{display:flex;align-items:center;gap:9px;margin-bottom:5px;}
+.bn{font-size:11.5px;width:155px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bt{flex:1;background:var(--bg3);border-radius:2px;height:20px;overflow:hidden;position:relative;}
+.bf{height:100%;border-radius:2px;}
+.bv{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:11px;font-weight:500;}
+.bd{font-family:var(--mono);font-size:11px;width:56px;text-align:right;flex-shrink:0;}
+
+/* Insight */
+.ig{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ins{background:var(--bg2);border:1px solid var(--border);border-radius:0 4px 4px 0;padding:11px 14px;border-left:3px solid;}
+.ins.r{border-left-color:var(--red);}
+.ins.a{border-left-color:var(--amber);}
+.ins.g{border-left-color:var(--green);}
+.ins.b{border-left-color:var(--blue);}
+.it{font-size:13px;font-weight:500;margin-bottom:3px;}
+.id{font-size:12px;color:var(--muted);line-height:1.65;}
+.id b{color:var(--text);font-weight:500;}
+
+/* Table */
+.tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.tbl th{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);border-bottom:1px solid var(--border);padding:7px 10px;text-align:left;}
+.tbl td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--bg3);}
+.mono{font-family:var(--mono);}
+
+/* Divider */
+.div{border:none;border-top:1px solid var(--border);margin:8px 0 14px;}
+
+@media(max-width:680px){
+  .g4,.g5{grid-template-columns:repeat(2,1fr);}
+  .g3{grid-template-columns:1fr 1fr;}
+  .two,.ig,.three{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-eye">Vùng TNT · Báo cáo hàng tuần · W19/2026</div>
+  <div class="hdr-h1">Dashboard Vận hành W18 (27/04 – 03/05/2026)</div>
+  <div class="hdr-sub">Cập nhật 06/05/2026 · File: TNT - Báo cáo hàng tuần</div>
+  <div class="pills">
+    <span class="pill pr">Trả hàng Total ▲0,48% → 7,77%</span>
+    <span class="pill pr">SME COD ▲0,72% → 11,65%</span>
+    <span class="pill pr">TTS ▲0,45% → 5,59%</span>
+    <span class="pill pr">Chỉ 2/14 AM cải thiện</span>
+    <span class="pill pr">BC TĐC Thiện Kế ▲5,94% — BC hot nhất vùng</span>
+    <span class="pill pg">BC 77 KĐT ▼6,62% — điểm sáng W18</span>
+    <span class="pill pa">Backlog giao &gt;24h ▲207 vs W-1</span>
+    <span class="pill pa">Nguyên nhân #1: Khách đổi ý 52,4%</span>
+  </div>
+</div>
+
+<!-- 01. TRẢ HÀNG TỔNG QUAN -->
+<div class="sec">
+  <div class="sec-hdr"><span class="sec-n">01</span><span class="sec-t">Trả hàng – Tổng quan W18 (27/04–03/05)</span></div>
+  <div class="kgrid g4">
+    <div class="kpi"><div class="kl">Trả hàng Total W18</div><div class="kv vr">7,77%</div><div class="ks"><span class="tag tgr">▲0,48% vs W17</span> <span class="tag tga">MTD T5: 7,70%</span></div></div>
+    <div class="kpi"><div class="kl">Trả hàng SME COD</div><div class="kv vr">11,65%</div><div class="ks"><span class="tag tgr">▲0,72% vs W17</span> <span class="tag tga">MTD T5: 11,42%</span></div></div>
+    <div class="kpi"><div class="kl">Trả hàng TTS</div><div class="kv va">5,59%</div><div class="ks"><span class="tag tgr">▲0,45% vs W17</span> <span class="tag tga">MTD T5: 5,87%</span></div></div>
+    <div class="kpi"><div class="kl">AM giảm / Tổng</div><div class="kv">2/14</div><div class="ks"><span class="tag tgr">W17 có 11/14 AM giảm</span></div></div>
+  </div>
+  <div class="two">
+    <div class="cb">
+      <div class="ct">Xu hướng 4 tuần – Total / SME / TTS (%)</div>
+      <div class="lg"><span><span class="ld" style="background:var(--amber)"></span>Total</span><span><span class="ld" style="background:var(--red)"></span>SME COD</span><span><span class="ld" style="background:var(--blue)"></span>TTS</span></div>
+      <div class="cw" style="height:170px"><canvas id="cTrend"></canvas></div>
+    </div>
+    <div class="cb">
+      <div class="ct">Trả hàng Total theo ngày W18 (26/04 Sun → 02/05 Sat)</div>
+      <div class="cw" style="height:185px"><canvas id="cDaily"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- 02. THEO AM -->
+<div class="sec">
+  <div class="sec-hdr"><span class="sec-n">02</span><span class="sec-t">Trả hàng theo AM – W18 (Tất cả nhóm hàng)</span></div>
+  <div class="two">
+    <div>
+      <div class="cb">
+        <div class="ct">Total W18 – xếp hạng & biến động vs W17</div>
+        <div id="amTotal"></div>
+      </div>
+    </div>
+    <div>
+      <div class="cb" style="margin-bottom:10px">
+        <div class="ct">SME COD W18 – xếp hạng</div>
+        <div id="amSME"></div>
+      </div>
+      <div class="cb">
+        <div class="ct">TTS W18 – xếp hạng</div>
+        <div id="amTTS"></div>
+      </div>
+    </div>
+  </div>
+  <div class="ig">
+    <div class="ins r"><div class="it">Nguyễn Thành Công – Tệ nhất, tăng mạnh nhất</div><div class="id">Total <b>12,16%</b> ▲2,23% vs W17. SME <b>16,01%</b> ▲2,54%. TTS <b>12,27%</b> ▲2,48%. Biến động ngày rất lớn, duy trì cao toàn tuần (Tue: 15,63% → Sat: 13,60%). Tăng liên tục 3 tuần.</div></div>
+    <div class="ins r"><div class="it">Phạm Tiến Bình – SME bùng phát Thu 30/04</div><div class="id">Total <b>11,46%</b> ▼1,56% (cải thiện). Nhưng SME <b>17,66%</b> vẫn cao nhất vùng, Thu bùng lên <b>19,33%</b>. TTS cũng đỉnh Thu: 18,23%. Ngày không ổn định.</div></div>
+    <div class="ins r"><div class="it">Phan Văn Quân – Leo thang 4 tuần liên tiếp</div><div class="id">Total <b>9,36%</b> ▲1,03%. SME <b>14,29%</b> ▲1,62%. W15→W18: 8,25%→8,56%→8,33%→9,36% — xu hướng tăng rõ ràng.</div></div>
+    <div class="ins a"><div class="it">Đặng Hồng Lĩnh – SME đột biến ▲2,07%</div><div class="id">Total 8,74% (▲1,14%). SME <b>13,60%</b> ▲2,07% — lần thứ 2 trong tháng có đột biến Trả Shop tại BC 85 Nguyễn Tất Thành-Liên Bảo-Vĩnh Phúc.</div></div>
+    <div class="ins g"><div class="it">Nguyễn Tài Khánh – Cải thiện tốt nhất</div><div class="id">Total <b>9,76%</b> ▼1,98% vs W17. SME ▼2,30%, TTS ▼0,98%. Ngày đang giảm dần (Sun 9,00% → Fri tăng 12,55% → Sat 10,77%). Cần theo dõi xu hướng Fri.</div></div>
+    <div class="ins g"><div class="it">Nguyễn Văn Giáp – Thấp nhất vùng liên tục</div><div class="id">Total <b>4,80%</b>, SME <b>8,60%</b>, TTS <b>3,07%</b> — duy trì mức thấp nhất vùng cả 3 nhóm hàng. Hành vi ổn định, ít biến động.</div></div>
+  </div>
+</div>
+
+<!-- 03. TOP 10 BC -->
+<div class="sec">
+  <div class="sec-hdr"><span class="sec-n">03</span><span class="sec-t">Top 10 Bưu cục trả hàng cao nhất – W18</span></div>
+  <div class="cb">
+    <div class="ct">Tỷ lệ trả hàng Total W18 – Top 10 BC (so sánh W17)</div>
+    <div class="lg"><span><span class="ld" style="background:rgba(224,85,85,.7)"></span>W18</span><span><span class="ld" style="background:rgba(255,255,255,.15)"></span>W17</span></div>
+    <div class="cw" style="height:240px"><canvas id="cBC"></canvas></div>
+  </div>
+  <div class="ig">
+    <div class="ins r"><div class="it">🔴 BC TĐC Đường DT310 – Thiện Kế – Vĩnh Phúc</div><div class="id">Total <b>21,00%</b> ▲5,94% — trở thành BC có tỷ lệ trả hàng cao nhất vùng W18, vượt BC 77. SME <b>26,04%</b> ▲8,12%. TTS <b>19,89%</b> ▲3,59%. Thứ Ba bùng lên <b>34,82%</b>. Nguyên nhân: Khách đổi ý <b>69,6%</b> (263/378 đơn) — cao nhất vùng.</div></div>
+    <div class="ins g"><div class="it">✅ BC 77 KĐT Yết Kiều – Phủ Lý – Hà Nam</div><div class="id">Total <b>15,16%</b> ▼6,62% — phục hồi mạnh sau 3 tuần tăng liên tiếp. SME ▼8,66% về 22,61%. TTS ▼3,81% về 10,90%. Điểm sáng nổi bật nhất W18, dù vẫn chiếm tỷ trọng 4,49% volume trả toàn vùng.</div></div>
+    <div class="ins r"><div class="it">🔴 BC Thôn Làng Mạ – Tam Dương Bắc – Vĩnh Phúc</div><div class="id">Total <b>13,06%</b> ▲2,20%. SME ▲2,60% → 17,03%. Tăng liên tục 4 tuần (W15: 9,57%→W18: 13,06%). Thứ Bảy bùng lên <b>20,11%</b>. Khách đổi ý 41,5%, Không liên lạc được 24,2%.</div></div>
+    <div class="ins a"><div class="it">⚠️ BC TDP Thắng Lợi – Bình Xuyên – Vĩnh Phúc</div><div class="id">Total <b>9,54%</b> ▲1,63% — đảo chiều tăng sau chuỗi giảm. SME ▲2,23% → 13,95%. Đặc trưng: "Không liên lạc được/Chặn số" chiếm <b>41,4%</b> — cao nhất Top 10, bất thường so với các BC khác.</div></div>
+  </div>
+</div>
+
+<!-- 04. NGUYÊN NHÂN TRẢ HÀNG -->
+<div class="sec">
+  <div class="sec-hdr"><span class="sec-n">04</span><span class="sec-t">Nguyên nhân trả hàng W18 – 2.873 đơn từ Top 10 BC</span></div>
+  <div class="two">
+    <div class="cb">
+      <div class="ct">Cơ cấu nguyên nhân toàn vùng (Top 10 BC)</div>
+      <div class="cw" style="height:200px"><canvas id="cNguyenNhan"></canvas></div>
+    </div>
+    <div class="cb">
+      <div class="ct">Số đơn trả theo BC – Top 10</div>
+      <div class="cw" style="height:200px"><canvas id="cBCDon"></canvas></div>
+    </div>
+  </div>
+  <div class="ig">
+    <div class="ins r"><div class="it">Khách đổi ý – Nguyên nhân #1 tại tất cả BC</div><div class="id">Chiếm <b>52,4%</b> tổng đơn (~1.504 đơn). BC TĐC Thiện Kế: 69,6%, BC Lập Thạch: 65,9%, BC 77: 53,9%. Thứ Ba 28/04 là ngày trả cao nhất tuần (<b>511 đơn</b>) — đỉnh tập trung tại BC 77 (16,62%) và TĐC (34,82%).</div></div>
+    <div class="ins a"><div class="it">Không liên lạc được / Chặn số – Vấn đề cục bộ</div><div class="id">16,6% tổng (~478 đơn). BC Thắng Lợi dẫn đầu về tỷ lệ: <b>41,4%</b> đơn trả của BC này là do không liên lạc được. BC Phúc Sơn 24,3%, BC Làng Mạ 24,2%. Dấu hiệu vấn đề địa bàn và chất lượng dữ liệu KH.</div></div>
+    <div class="ins a"><div class="it">Sai sản phẩm – Nổi bật tại BC Gò Gai</div><div class="id">5,2% tổng (~149 đơn). BC Gò Gai chiếm tỷ lệ cao nhất vùng: <b>17,2%</b> đơn trả là do sai sản phẩm, phân bố đều cả tuần — dấu hiệu NV không hướng dẫn KH đúng quy trình kiểm tra hàng.</div></div>
+    <div class="ins g"><div class="it">Chủ nhật 03/05 – Ngày thấp nhất tuần</div><div class="id">Chỉ <b>223 đơn</b> — thấp nhất trong 7 ngày. 10/10 BC đều giảm so với ngày hôm trước. Phản ánh tác động hệ thống khi chuyển trả về ngày mới.</div></div>
+  </div>
+</div>
+
+<!-- 05. BACKLOG -->
+<div class="sec">
+  <div class="sec-hdr"><span class="sec-n">05</span><span class="sec-t">Backlog – Tuần 20–26/04/2026</span></div>
+  <div class="kgrid g3">
+    <div class="kpi"><div class="kl">Giao &gt;24h – TB 7 ngày</div><div class="kv vr">237 đơn/ngày</div><div class="ks"><span class="tag tgr">▲207 vs W-1 | Đỉnh CN: 337</span></div></div>
+    <div class="kpi"><div class="kl">Trả Shop &gt;24h – TB 7 ngày</div><div class="kv vr">178 đơn/ngày</div><div class="ks"><span class="tag tgr">▲71 vs W-1 | Đang tệ hơn</span></div></div>
+    <div class="kpi"><div class="kl">LC Trả &gt;36h – TB 7 ngày</div><div class="kv vg">123 đơn/ngày</div><div class="ks"><span class="tag tgg">▼40% vs W-1 | Nhóm duy nhất cải thiện</span></div></div>
+  </div>
+  <div class="three">
+    <div class="cb"><div class="ct">Giao &gt;24h theo ngày</div><div class="cw" style="height:145px"><canvas id="cBLG"></canvas></div></div>
+    <div class="cb"><div class="ct">Trả Shop &gt;24h theo ngày</div><div class="cw" style="height:145px"><canvas id="cBLT"></canvas></div></div>
+    <div class="cb"><div class="ct">LC Trả &gt;36h theo ngày</div><div class="cw" style="height:145px"><canvas id="cBLL"></canvas></div></div>
+  </div>
+  <div class="ig">
+    <div class="ins r"><div class="it">Phạm Tiến Bình – 180 đơn Giao&gt;24h ngày CN</div><div class="id">Do AM thao tác <b>chuyển kho nhầm</b> đơn hàng lấy ngày 26/04. TB 7N: 38 đơn. Trả Shop >24h duy trì <b>21–49 đơn suốt 7 ngày</b>, TB 32 đơn/ngày — mãn tính.</div></div>
+    <div class="ins r"><div class="it">Phạm Hoài Linh – Trả Shop bùng từ 0→84</div><div class="id">Từ 0 đơn ngày 20–21/04, tăng liên tục lên <b>84 đơn CN 26/04</b>, toàn bộ tại BC QL2-Phù Ninh. TB 7N: 30 đơn. Xu hướng tệ đi nhanh.</div></div>
+    <div class="ins a"><div class="it">Phùng Văn Đồng & Bùi Việt Đức – Giao&gt;24h không ổn định</div><div class="id">Đồng: dao động 4–43 đơn suốt 2 tuần, chưa có dấu hiệu hạ. Đức: lên 43 ngày T7 rồi xuống 18 CN — hành vi không ổn định, cần theo dõi.</div></div>
+    <div class="ins g"><div class="it">KCT Vĩnh Phúc, KTC Hòa Bình, Phạm Hoài Linh (LC &gt;36h)</div><div class="id">KCT VP: từ đỉnh 47→9. KTC HB: từ đỉnh 34→3. Linh: đã xử lý xong đỉnh 126 đơn. Cả 3 đang trong xu hướng <b>cải thiện rõ rệt</b>.</div></div>
+  </div>
+</div>
+
+<!-- 06. AGING -->
+<div class="sec">
+  <div class="sec-hdr"><span class="sec-n">06</span><span class="sec-t">Aging 5 ngày – Tuần 17 (14–19/04/2026)</span></div>
+  <div class="kgrid g3" style="margin-bottom:12px">
+    <div class="kpi"><div class="kl">Tổng Aging W17</div><div class="kv va">10.236 đơn</div><div class="ks"><span class="tag tgg">▼22,1% vs W16</span></div></div>
+    <div class="kpi"><div class="kl">Số 1 vùng W17</div><div class="kv vr">Bùi Việt Đức</div><div class="ks">2.097 đơn ▲36,1% (tăng 3 tuần liên tiếp)</div></div>
+    <div class="kpi"><div class="kl">Cải thiện nhất W17</div><div class="kv vg">Phạm Tiến Bình</div><div class="ks">3.783 → 1.070 đơn (▼71,7%)</div></div>
+  </div>
+  <div class="cb">
+    <div class="ct">Aging theo AM – W16 vs W17</div>
+    <div class="lg"><span><span class="ld" style="background:rgba(255,255,255,.12)"></span>W16</span><span><span class="ld" style="background:var(--red)"></span>W17</span></div>
+    <div class="cw" style="height:220px"><canvas id="cAgingAM"></canvas></div>
+  </div>
+  <div class="cb">
+    <div class="ct">Aging theo Bưu cục – Top 10 (W17 tích lũy)</div>
+    <div class="cw" style="height:210px"><canvas id="cAgingBC"></canvas></div>
+  </div>
+  <div class="ig">
+    <div class="ins r"><div class="it">BC 362 Lương Sơn – Dẫn đầu aging W17</div><div class="id">1.921 đơn (18,8% tổng), tăng +573 (+42,5%) vs W16. Dao động 180–211 đơn/ngày — chưa xử lý dứt điểm, xu hướng giảm rất chậm.</div></div>
+    <div class="ins r"><div class="it">BC TĐC Thiện Kế – Tăng đột biến nguy hiểm nhất</div><div class="id">1.716 đơn (16,8%), +939 đơn (+120,8%). Từ 14–23 đơn/ngày đầu tuần bùng lên <b>225 đơn/ngày</b> cuối tuần — tăng hơn 15 lần. Mất kiểm soát hoàn toàn.</div></div>
+    <div class="ins g"><div class="it">BC 38 Lê Quý Đôn – Cải thiện xuất sắc</div><div class="id">Từ 387 đơn/ngày (14/04) giảm về <b>44 đơn/ngày</b> (19/04) — giảm <b>88,6%</b>. Điểm sáng trong nhóm nghiêm trọng.</div></div>
+    <div class="ins g"><div class="it">BC Nhật Tựu & BC Quốc Lộ 21A</div><div class="id">Nhật Tựu: ▼69,2% (3.243→999 đơn). QL21A: ▼84,7% về 21 đơn/ngày. Hai BC cải thiện mạnh nhất W17.</div></div>
+  </div>
+</div>
+
+<!-- 07. OPR -->
+<div class="sec">
+  <div class="sec-hdr"><span class="sec-n">07</span><span class="sec-t">OPR – Ontime lấy hàng W17</span></div>
+  <div class="kgrid g4">
+    <div class="kpi"><div class="kl">OPR TB toàn vùng</div><div class="kv va">82,2%</div><div class="ks">Trên 136.459 đơn</div></div>
+    <div class="kpi"><div class="kl">Tốt nhất – Hòa Bình</div><div class="kv vg">95,06%</div><div class="ks">Trước 9h &gt;85%</div></div>
+    <div class="kpi"><div class="kl">Yếu nhất – Hà Nam</div><div class="kv vr">63,43%</div><div class="ks">Trước 9h chỉ 45,73%</div></div>
+    <div class="kpi"><div class="kl">Sau 19h toàn vùng</div><div class="kv vr">&lt;60%</div><div class="ks">Ninh Bình, Phú Thọ &gt;64%</div></div>
+  </div>
+  <div class="cb">
+    <div class="ct">OPR theo khung giờ và tỉnh</div>
+    <div class="lg"><span><span class="ld" style="background:var(--blue)"></span>Trước 9h</span><span><span class="ld" style="background:var(--green)"></span>9h–19h</span><span><span class="ld" style="background:var(--amber)"></span>Sau 19h</span></div>
+    <div class="cw" style="height:195px"><canvas id="cOPR"></canvas></div>
+  </div>
+</div>
+
+<!-- 08. RỚT LC -->
+<div class="sec">
+  <div class="sec-hdr"><span class="sec-n">08</span><span class="sec-t">Rớt Luân chuyển W17 (13–19/04/2026)</span></div>
+  <div class="kgrid g3">
+    <div class="kpi"><div class="kl">Tổng rớt LC</div><div class="kv">5.004 đơn</div></div>
+    <div class="kpi"><div class="kl">Rớt non-TTS</div><div class="kv vr">4.048 đơn</div><div class="ks"><span class="tag tgr">80,9%</span></div></div>
+    <div class="kpi"><div class="kl">Rớt TTS</div><div class="kv va">956 đơn</div><div class="ks"><span class="tag tga">19,1%</span></div></div>
+  </div>
+  <div class="two">
+    <div class="cb">
+      <div class="ct">Rớt LC theo AM – Total vs TTS</div>
+      <div class="cw" style="height:250px"><canvas id="cRdLCAM"></canvas></div>
+    </div>
+    <div class="cb">
+      <div class="ct">Rớt LC theo ngày & nhóm KH</div>
+      <div class="lg"><span><span class="ld" style="background:var(--muted)"></span>Khác</span><span><span class="ld" style="background:var(--blue)"></span>Shopee</span><span><span class="ld" style="background:var(--amber)"></span>TTS</span></div>
+      <div class="cw" style="height:225px"><canvas id="cRdLCDay"></canvas></div>
+    </div>
+  </div>
+  <div class="ig">
+    <div class="ins r"><div class="it">Bùi Việt Đức – 24% tổng rớt LC vùng</div><div class="id">1.200 đơn, chỉ 7,3% là TTS. Nguồn chính: <b>BC 362 Lương Sơn 959 đơn</b> — tuyến chành xe cần xem xét lại lịch LC.</div></div>
+    <div class="ins r"><div class="it">Nguyễn Thành Công + Phạm Ngọc Hoàn – 33,5%</div><div class="id">Công: 878 đơn (45,4% TTS) — rớt cục bộ 13/04 do xe KCT quá tải (397 đơn). Hoàn: 803 đơn (41,7% TTS) — chuyển đổi chuyên lấy 1 ngày không kịp (331 đơn). Cả 2 đều là sự cố 1 ngày, không phải xu hướng.</div></div>
+    <div class="ins g"><div class="it">3 AM không có rớt TTS</div><div class="id"><b>Lê Thanh Tuấn, Phạm Thế Tuấn, Nguyễn Văn Giáp</b> — kiểm soát luân chuyển TTS tốt nhất vùng suốt cả tuần.</div></div>
+    <div class="ins a"><div class="it">41% tổng rớt cả tuần dồn vào ngày 13/04</div><div class="id">2.062/5.004 đơn chỉ trong 1 ngày — do 2 sự cố cục bộ (Nhượng 786đ + Lộc Hòa 692đ). Không phải vấn đề hệ thống, cần giải pháp phòng ngừa tải đỉnh.</div></div>
+  </div>
+</div>
+
+<!-- 09. BẢNG ƯU TIÊN -->
+<div class="sec">
+  <div class="sec-hdr"><span class="sec-n">09</span><span class="sec-t">Bảng tổng hợp – Ưu tiên hành động W19</span></div>
+  <table class="tbl">
+    <thead><tr><th>Mức độ</th><th>Đối tượng</th><th>Tình trạng chính</th><th>Hành động đề xuất</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag tgr">🔴 Ngay</span></td><td class="mono">Nguyễn Thành Công</td><td>Total 12,16% ▲2,23% | SME 16,01% ▲2,54% | TTS 12,27% ▲2,48% | Aging ▲114%</td><td>Review ngày BC 57 NV Nhượng + BC TĐC Thiện Kế; kiểm soát ngày</td></tr>
+      <tr><td><span class="tag tgr">🔴 Ngay</span></td><td class="mono">BC TĐC Thiện Kế</td><td>Total 21,00% ▲5,94% | SME 26,04% | Thứ Ba bùng 34,82% | Aging 1.716đ</td><td>Phân loại đơn KH đổi ý sớm; hạn chế nhận đơn mới khi tồn cao</td></tr>
+      <tr><td><span class="tag tgr">🔴 Ngay</span></td><td class="mono">Phạm Tiến Bình</td><td>SME 17,66% | Trả Shop >24h TB 32đ/ngày 7 ngày liên tiếp | Thu TTS 18,23%</td><td>Kiểm soát thao tác hệ thống; review tuyến TTS quá tải</td></tr>
+      <tr><td><span class="tag tga">🟡 Tuần này</span></td><td class="mono">Phạm Hoài Linh</td><td>Trả Shop bùng 0→84 đơn | BC QL2-Phù Ninh | Rớt LC TTS 23,7%</td><td>Xử lý tồn BC Phù Ninh; phối hợp vận tải cố định lịch xe</td></tr>
+      <tr><td><span class="tag tga">🟡 Tuần này</span></td><td class="mono">Bùi Việt Đức</td><td>Aging 2.097đ số 1 vùng ▲36% | Rớt LC 1.200đ (24%) | BC Lương Sơn 959đ</td><td>Rà lịch LC chành xe BC Lương Sơn; gán FIFO ưu tiên đơn cũ</td></tr>
+      <tr><td><span class="tag tga">🟡 Tuần này</span></td><td class="mono">Phan Văn Quân</td><td>Total 9,36% ▲1,03% | Aging 1.539đ ▲131% | Tăng 4 tuần liên tiếp</td><td>Xác định BC gốc aging; phân bổ NV hỗ trợ</td></tr>
+      <tr><td><span class="tag tga">🟡 Tuần này</span></td><td class="mono">Hà Nam – OPR</td><td>63,43% tổng thể | Trước 9h: 45,73% thấp nhất vùng</td><td>Triển khai chuyên lấy BC &gt;1.000đ/ngày; report OPR hàng ngày</td></tr>
+      <tr><td><span class="tag tgg">🟢 Theo dõi</span></td><td class="mono">BC 77 KĐT Yết Kiều</td><td>▼6,62% về 15,16% — cải thiện mạnh nhất W18</td><td>Duy trì; tránh để đơn tồn dồn vào Thứ Sáu (19,40%)</td></tr>
+      <tr><td><span class="tag tgg">🟢 Theo dõi</span></td><td class="mono">Nguyễn Tài Khánh</td><td>Total ▼1,98% | Aging ▼50,9% — cải thiện tốt</td><td>Duy trì đà; cẩn thận BC 77 KĐT + BC Nhật Tựu còn tồn</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- end wrap -->
+
+<script>
+Chart.defaults.color='#6e6c63';
+Chart.defaults.borderColor='rgba(255,255,255,0.06)';
+Chart.defaults.font.family="'IBM Plex Mono',monospace";
+Chart.defaults.font.size=11;
+
+const gc='rgba(255,255,255,0.05)', tc='#6e6c63', tpri='#e4e2d8';
+
+// 1. Trend
+new Chart(document.getElementById('cTrend'),{type:'line',data:{
+  labels:['W15','W16','W17','W18'],
+  datasets:[
+    {label:'Total',data:[7.03,7.50,7.30,7.77],borderColor:'#d4913a',backgroundColor:'rgba(212,145,58,.08)',borderWidth:2.5,tension:.3,pointRadius:5},
+    {label:'SME COD',data:[10.83,11.06,10.93,11.65],borderColor:'#e05555',backgroundColor:'rgba(224,85,85,.06)',borderWidth:2,tension:.3,pointRadius:4,borderDash:[5,3]},
+    {label:'TTS',data:[4.80,5.20,5.14,5.59],borderColor:'#4b8fd0',backgroundColor:'rgba(75,143,208,.06)',borderWidth:2,tension:.3,pointRadius:4,borderDash:[2,4]},
+  ]
+},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc}},y:{min:4,max:13,ticks:{color:tc,callback:v=>v+'%'}}}}});
+
+// 2. Daily (26/04 Sun → 02/05 Sat)
+new Chart(document.getElementById('cDaily'),{type:'bar',data:{
+  labels:['Sun 26/4','Mon 27/4','Tue 28/4','Wed 29/4','Thu 30/4','Fri 01/5','Sat 02/5'],
+  datasets:[{data:[6.68,8.38,6.92,6.39,7.66,9.14,9.25],backgroundColor:(ctx)=>{const v=ctx.raw;return v>=9?'rgba(224,85,85,.8)':v>=8?'rgba(224,85,85,.6)':v>=7?'rgba(212,145,58,.65)':'rgba(95,168,74,.6)';},borderRadius:3}]
+},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:10}}},y:{min:5,max:10.5,ticks:{color:tc,callback:v=>v+'%'}}}}});
+
+// AM bars helper
+function makeAM(id,data,maxVal){
+  const c=document.getElementById(id);
+  [...data].sort((a,b)=>b.val-a.val).forEach(d=>{
+    const pct=d.val/maxVal*100;
+    const fill=d.val>=15?'#e05555':d.val>=10?'#d4913a':d.val>=7?'#d4913a':'#5fa84a';
+    const tv=d.val>=10?'#e05555':d.val>=7?'#d4913a':'#5fa84a';
+    const ds=d.delta!==undefined?((d.delta>0?'▲':'▼')+Math.abs(d.delta).toFixed(2)+'%'):'';
+    const dc=d.delta>0?'#e05555':'#5fa84a';
+    c.innerHTML+=`<div class="br"><div class="bn" title="${d.am}">${d.am}</div><div class="bt"><div class="bf" style="width:${pct}%;background:${fill};opacity:.75;"></div><span class="bv" style="color:${tv};">${d.val.toFixed(2)}%</span></div>${d.delta!==undefined?`<div class="bd" style="color:${dc};">${ds}</div>`:''}</div>`;
+  });
+}
+
+makeAM('amTotal',[
+  {am:'Ng.Thành Công',val:12.16,delta:+2.23},{am:'Phạm Tiến Bình',val:11.46,delta:-1.56},
+  {am:'Ng.Tài Khánh',val:9.76,delta:-1.98},{am:'Phan Văn Quân',val:9.36,delta:+1.03},
+  {am:'Đặng Hồng Lĩnh',val:8.74,delta:+1.14},{am:'Phạm Hoài Linh',val:8.16,delta:+0.84},
+  {am:'Lê Văn Sơn',val:7.97,delta:+1.05},{am:'Lê Thanh Tuấn',val:7.41,delta:+0.53},
+  {am:'Phùng Văn Đồng',val:7.25,delta:+0.46},{am:'Bùi Việt Đức',val:6.96,delta:+0.72},
+  {am:'Phạm Thế Tuấn',val:6.32,delta:+0.49},{am:'Phạm Ngọc Hoàn',val:6.32,delta:+0.26},
+  {am:'Phạm Văn Bắc',val:5.96,delta:+0.42},{am:'Ng.Văn Giáp',val:4.80,delta:+0.41},
+],15);
+
+makeAM('amSME',[
+  {am:'Phạm Tiến Bình',val:17.66,delta:-0.82},{am:'Ng.Thành Công',val:16.01,delta:+2.54},
+  {am:'Ng.Tài Khánh',val:15.67,delta:-2.30},{am:'Phan Văn Quân',val:14.29,delta:+1.62},
+  {am:'Đặng Hồng Lĩnh',val:13.60,delta:+2.07},{am:'Lê Văn Sơn',val:12.58,delta:+1.62},
+  {am:'Phạm Hoài Linh',val:11.64,delta:+1.05},{am:'Ng.Văn Giáp',val:8.60,delta:+0.78},
+],22);
+
+makeAM('amTTS',[
+  {am:'Ng.Thành Công',val:12.27,delta:+2.48},{am:'Phạm Tiến Bình',val:9.66,delta:-0.48},
+  {am:'Ng.Tài Khánh',val:6.55,delta:-0.98},{am:'Phan Văn Quân',val:6.66,delta:+0.46},
+  {am:'Phạm Hoài Linh',val:5.59,delta:+0.51},{am:'Phùng Văn Đồng',val:5.28,delta:+0.87},
+  {am:'Lê Thanh Tuấn',val:4.97,delta:-0.26},{am:'Ng.Văn Giáp',val:3.07,delta:+0.48},
+],15);
+
+// BC top10 W18 vs W17
+new Chart(document.getElementById('cBC'),{type:'bar',data:{
+  labels:['TĐC Thiện Kế','77 KĐT Yết Kiều','Làng Mạ','38 LQĐôn','Thắng Lợi','150 THĐạo','Lập Thạch','Phúc Sơn','Gò Gai','Lý Nhân'],
+  datasets:[
+    {label:'W17',data:[15.06,21.78,10.86,10.71,7.92,8.48,9.82,7.91,8.16,8.50],backgroundColor:'rgba(255,255,255,0.1)',borderRadius:2},
+    {label:'W18',data:[21.00,15.16,13.06,9.71,9.54,9.94,10.94,8.82,9.03,8.36],backgroundColor:(ctx)=>{const v=ctx.raw;return v>=18?'rgba(224,85,85,.8)':v>=12?'rgba(224,85,85,.65)':v>=9?'rgba(212,145,58,.65)':'rgba(95,168,74,.6)';},borderRadius:2},
+  ]
+},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:tc,boxWidth:10,font:{size:10}}}},scales:{x:{ticks:{color:tc,font:{size:9},maxRotation:25}},y:{ticks:{color:tc,callback:v=>v+'%'}}}}});
+
+// Nguyên nhân
+new Chart(document.getElementById('cNguyenNhan'),{type:'doughnut',data:{
+  labels:['Khách đổi ý','KL được/Chặn số','NR không nghe máy','NR hẹn lại','Sai sản phẩm','Khác'],
+  datasets:[{data:[1504,478,235,234,149,273],backgroundColor:['#e05555','#d4913a','#4b8fd0','#9370c8','#5fa84a','#6e6c63'],borderWidth:0}]
+},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'right',labels:{color:tc,boxWidth:10,font:{size:10},padding:8}}}}});
+
+// BC số đơn trả
+new Chart(document.getElementById('cBCDon'),{type:'bar',data:{
+  labels:['BC 77 KĐT','TĐC Thiện Kế','Lý Nhân','150 THĐạo','Lập Thạch','Phúc Sơn','Làng Mạ','Thắng Lợi','38 LQĐôn','Gò Gai'],
+  datasets:[{data:[440,378,295,279,273,267,265,261,212,203],backgroundColor:'rgba(224,85,85,.6)',borderRadius:3}]
+},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc}},y:{ticks:{color:tc,font:{size:10}}}}}});
+
+// Backlog
+const dayL=['T2 20','T3 21','T4 22','T5 23','T6 24','T7 25','CN 26'];
+new Chart(document.getElementById('cBLG'),{type:'line',data:{labels:dayL,datasets:[{data:[252,295,197,148,196,238,337],borderColor:'#e05555',backgroundColor:'rgba(224,85,85,.1)',borderWidth:2,tension:.3,pointRadius:3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:9}}},y:{ticks:{color:tc}}}}});
+new Chart(document.getElementById('cBLT'),{type:'line',data:{labels:dayL,datasets:[{data:[100,85,111,396,143,251,161],borderColor:'#e05555',backgroundColor:'rgba(224,85,85,.1)',borderWidth:2,tension:.3,pointRadius:3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:9}}},y:{ticks:{color:tc}}}}});
+new Chart(document.getElementById('cBLL'),{type:'line',data:{labels:dayL,datasets:[{data:[139,102,126,96,121,170,104],borderColor:'#5fa84a',backgroundColor:'rgba(95,168,74,.1)',borderWidth:2,tension:.3,pointRadius:3,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:9}}},y:{ticks:{color:tc}}}}});
+
+// Aging AM
+new Chart(document.getElementById('cAgingAM'),{type:'bar',data:{
+  labels:['Bùi Việt Đức','Ng.Tài Khánh','Ng.Thành Công','Phan Văn Quân','Phạm Tiến Bình','Đặng Hồng Lĩnh','Lê Thanh Tuấn','Lê Văn Sơn'],
+  datasets:[
+    {label:'W16',data:[1541,3766,820,665,3783,371,185,257],backgroundColor:'rgba(255,255,255,.1)',borderRadius:2},
+    {label:'W17',data:[2097,1850,1754,1539,1070,709,431,165],backgroundColor:(ctx)=>{const v=ctx.raw;return v>1500?'rgba(224,85,85,.75)':v>500?'rgba(212,145,58,.7)':'rgba(95,168,74,.65)';},borderRadius:2},
+  ]
+},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:tc,boxWidth:10,font:{size:10}}}},scales:{x:{ticks:{color:tc,font:{size:10},maxRotation:20}},y:{ticks:{color:tc}}}}});
+
+// Aging BC
+new Chart(document.getElementById('cAgingBC'),{type:'bar',data:{
+  labels:['BC 77 KĐT\nYết Kiều','BC Nhật Tựu\nKim Bảng','BC 362\nLương Sơn','BC 38\nLê Quý Đôn','BC TĐC\nThiện Kế','BC QL 21A\nKim Bảng','BC Làng Mạ\nVĩnh Phúc','BC Phố Bưởi\nHòa Bình'],
+  datasets:[{data:[1794,999,1921,325,1716,540,1344,352],backgroundColor:['rgba(212,145,58,.7)','rgba(95,168,74,.65)','rgba(224,85,85,.8)','rgba(95,168,74,.65)','rgba(224,85,85,.75)','rgba(95,168,74,.7)','rgba(224,85,85,.65)','rgba(224,85,85,.55)'],borderRadius:3}]
+},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:tc,font:{size:9},maxRotation:15}},y:{ticks:{color:tc,callback:v=>v.toLocaleString()}}}}});
+
+// OPR
+new Chart(document.getElementById('cOPR'),{type:'bar',data:{
+  labels:['Hòa Bình','Ninh Bình','Phú Thọ','Vĩnh Phúc','Nam Định','Hà Nam'],
+  datasets:[
+    {label:'Trước 9h',data:[86,85,78,75,68,45.73],backgroundColor:'rgba(75,143,208,.6)',borderRadius:2},
+    {label:'9h–19h',data:[97,96,95,93,88,81.11],backgroundColor:'rgba(95,168,74,.6)',borderRadius:2},
+    {label:'Sau 19h',data:[68,64,64,55,50,42],backgroundColor:'rgba(212,145,58,.55)',borderRadius:2},
+  ]
+},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:tc,boxWidth:10,font:{size:10}}}},scales:{x:{ticks:{color:tc}},y:{min:0,max:100,ticks:{color:tc,callback:v=>v+'%'}}}}});
+
+// Rớt LC AM
+new Chart(document.getElementById('cRdLCAM'),{type:'bar',data:{
+  labels:['Bùi Việt Đức','Ng.Thành Công','Phạm Ngọc Hoàn','Phan Văn Quân','Lê Thanh Tuấn','Phạm Hoài Linh','Phùng Văn Đồng','Phạm Tiến Bình','Ng.Tài Khánh','Lê Văn Sơn'],
+  datasets:[
+    {label:'Non-TTS',data:[1112,479,468,432,311,222,234,202,167,141],backgroundColor:'rgba(224,85,85,.65)',borderRadius:2},
+    {label:'TTS',data:[88,399,335,23,0,69,17,9,8,1],backgroundColor:'rgba(212,145,58,.65)',borderRadius:2},
+  ]
+},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:tc,boxWidth:10,font:{size:10}}}},scales:{x:{stacked:false,ticks:{color:tc}},y:{ticks:{color:tc,font:{size:10}}}}}});
+
+// Rớt LC day
+new Chart(document.getElementById('cRdLCDay'),{type:'bar',data:{
+  labels:['13/04','14/04','15/04','16/04','17/04','18/04','19/04'],
+  datasets:[
+    {label:'Khác',data:[591,381,270,355,272,271,209],backgroundColor:'rgba(110,108,99,.6)',borderRadius:2,stack:'s'},
+    {label:'Shopee',data:[702,209,206,172,154,117,139],backgroundColor:'rgba(75,143,208,.65)',borderRadius:2,stack:'s'},
+    {label:'TTS',data:[769,86,21,29,23,9,19],backgroundColor:'rgba(212,145,58,.7)',borderRadius:2,stack:'s'},
+  ]
+},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:tc,boxWidth:10,font:{size:10}}}},scales:{x:{stacked:true,ticks:{color:tc}},y:{stacked:true,ticks:{color:tc}}}}});
+</script>
+</body>
+</html>
