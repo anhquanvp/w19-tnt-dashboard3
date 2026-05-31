@@ -105,7 +105,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 <body>
 
 <!-- ============================================================
-  TNT REPORT AUTH
+  TNT REPORT AUTH v5
 ============================================================ -->
 <style>
   #tnt-auth-gate {
@@ -116,7 +116,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
   }
   #tnt-auth-gate .box {
     background: #161614; border: 1px solid #272725;
-    border-radius: 8px; padding: 36px 32px; width: 320px; text-align: center;
+    border-radius: 8px; padding: 36px 32px; width: 340px; text-align: center;
   }
   #tnt-auth-gate .eyebrow {
     font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
@@ -125,26 +125,38 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
   #tnt-auth-gate h2 {
     font-size: 17px; font-weight: 600; color: #e4e2d8; margin-bottom: 6px;
   }
-  #tnt-auth-gate p {
-    font-size: 12px; color: #6e6c63; line-height: 1.65; margin-bottom: 24px;
+  #tnt-auth-gate .sub {
+    font-size: 12px; color: #6e6c63; line-height: 1.65; margin-bottom: 20px;
   }
+  #tnt-auth-gate .inp {
+    width: 100%; padding: 10px 12px; border: 1px solid #272725; border-radius: 4px;
+    background: #1e1e1c; color: #e4e2d8; font-size: 13px;
+    font-family: 'IBM Plex Mono', monospace;
+    box-sizing: border-box; margin-bottom: 10px; outline: none;
+    transition: border-color .15s;
+  }
+  #tnt-auth-gate .inp:focus { border-color: #4b8fd0; }
+  #tnt-auth-gate .inp::placeholder { color: #4a4845; }
   #tnt-auth-gate .btn {
-    display: inline-flex; align-items: center; gap: 10px;
-    background: #fff; color: #1f1f1f;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: #4b8fd0; color: #fff;
     border: none; border-radius: 4px; padding: 10px 20px;
     font-size: 13px; font-weight: 500; cursor: pointer;
-    width: 100%; justify-content: center;
+    width: 100%; transition: background .15s;
   }
-  #tnt-auth-gate .btn:hover { background: #f0f0f0; }
-  #tnt-auth-gate .btn svg { flex-shrink: 0; }
+  #tnt-auth-gate .btn:hover { background: #3a7ec0; }
+  #tnt-auth-gate .btn:disabled { background: #2a4a60; cursor: not-allowed; }
   #tnt-auth-gate .status {
-    margin-top: 14px; font-size: 12px; color: #6e6c63; min-height: 18px;
+    margin-top: 12px; font-size: 12px; color: #6e6c63; min-height: 18px;
   }
   #tnt-auth-gate .error {
-    margin-top: 14px; background: rgba(224,85,85,.1);
+    margin-top: 12px; background: rgba(224,85,85,.1);
     border: 1px solid rgba(224,85,85,.25); border-radius: 4px;
     color: #e05555; font-size: 12px; padding: 10px 12px;
     text-align: left; line-height: 1.6; display: none;
+  }
+  #tnt-auth-gate .hint {
+    margin-top: 14px; font-size: 11px; color: #4a4845; line-height: 1.5;
   }
 
   #tnt-logout-bar {
@@ -164,7 +176,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
   #report-content { display: none; }
 </style>
 
-<!-- Logout bar (hiện sau khi đăng nhập) -->
+<!-- Logout bar -->
 <div id="tnt-logout-bar">
   <span>🔒 <strong id="tnt-user-email"></strong></span>
   <button onclick="tntLogout()">Đăng xuất</button>
@@ -174,20 +186,17 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 <div id="tnt-auth-gate">
   <div class="box">
     <div class="eyebrow">Vùng TNT · Báo cáo nội bộ</div>
-    <h2>Đăng nhập để xem</h2>
-    <p>Tài liệu này dành cho nội bộ.<br>Nhấn nút bên dưới và đăng nhập bằng Gmail được cấp quyền.</p>
-    <button class="btn" onclick="tntLogin()">
-      <!-- Google icon -->
-      <svg width="18" height="18" viewBox="0 0 48 48">
-        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-      </svg>
-      Đăng nhập với Google
+    <h2>Xác nhận quyền truy cập</h2>
+    <p class="sub">Nhập email được cấp quyền để xem báo cáo.</p>
+    <input id="tnt-email-inp" class="inp" type="email"
+           placeholder="email@ghn.vn"
+           onkeydown="if(event.key==='Enter')tntLogin()" />
+    <button class="btn" id="tnt-btn" onclick="tntLogin()">
+      Xác nhận
     </button>
     <div class="status" id="tnt-status"></div>
     <div class="error" id="tnt-error"></div>
+    <div class="hint">Token hợp lệ trong 6 giờ kể từ lần xác nhận.</div>
   </div>
 </div>
 
@@ -197,8 +206,10 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkCNvEMY3H6bidk8KHmf4PYY8TSXhHFxDk3O-9wDVKbiJta0lScAIRC6_yHGf7lRw_dA/exec';
   // ────────────────────────────────────────────────────────
 
-  const SESSION_KEY = 'tnt_auth_ok';
+  const STORE_EMAIL = 'tnt_email';
+  const STORE_TOKEN = 'tnt_token';
 
+  // ── Helpers UI ───────────────────────────────────────────
   function setStatus(msg) {
     document.getElementById('tnt-status').textContent = msg;
   }
@@ -207,9 +218,14 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
     el.style.display = 'block';
     el.innerHTML = msg;
     setStatus('');
+    setBtn(false);
+  }
+  function setBtn(loading) {
+    const btn = document.getElementById('tnt-btn');
+    btn.disabled = loading;
+    btn.textContent = loading ? 'Đang kiểm tra…' : 'Xác nhận';
   }
   function grantAccess(email) {
-    sessionStorage.setItem(SESSION_KEY, email);
     document.getElementById('tnt-auth-gate').style.display = 'none';
     document.getElementById('report-content').style.display = 'block';
     const bar = document.getElementById('tnt-logout-bar');
@@ -217,68 +233,76 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
     document.getElementById('tnt-user-email').textContent = email;
   }
 
-  // Lắng nghe postMessage từ popup (Apps Script gửi về sau khi xác thực)
-  window.addEventListener('message', function (event) {
-    // Chỉ nhận từ script.google.com
-    if (!event.origin.includes('google.com')) return;
-    try {
-      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-      if (!data.tnt_auth) return; // không phải message của mình
-      if (data.ok === true) {
-        grantAccess(data.email);
-      } else {
-        showError(
-          '<strong>Không có quyền truy cập.</strong><br>' +
-          'Email <em>' + (data.email || '?') + '</em> chưa được cấp quyền.<br>' +
-          'Liên hệ quản lý vùng để được thêm vào danh sách.'
-        );
-      }
-    } catch (e) { /* ignore parse errors */ }
-  });
+  // ── Xử lý hash token từ redirect (Apps Script → HTML) ───
+  // Hash format: #tnt_ok=email&tnt_tok=TOKEN hoặc #tnt_deny=email
+  function checkHashToken() {
+    const hash = window.location.hash;
+    if (!hash.startsWith('#tnt_')) return false;
 
+    // Xoá khỏi URL ngay
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+
+    // Parse các params trong hash
+    const params = {};
+    hash.slice(1).split('&').forEach(part => {
+      const [k, v] = part.split('=');
+      params[k] = v ? decodeURIComponent(v) : '';
+    });
+
+    if (params.tnt_ok && params.tnt_tok) {
+      // Lưu vào sessionStorage
+      sessionStorage.setItem(STORE_EMAIL, params.tnt_ok);
+      sessionStorage.setItem(STORE_TOKEN, params.tnt_tok);
+      grantAccess(params.tnt_ok);
+      return true;
+    }
+    if (params.tnt_deny) {
+      const email = params.tnt_deny;
+      showError(
+        '<strong>Không có quyền truy cập.</strong><br>' +
+        'Email <em>' + (email !== 'no_email' ? email : '(trống)') + '</em> chưa được cấp quyền.<br>' +
+        'Liên hệ quản lý vùng để được thêm vào danh sách.'
+      );
+      return true;
+    }
+    return false;
+  }
+
+  // ── Nút Xác nhận: redirect sang Apps Script kèm email ───
   window.tntLogin = function () {
-    setStatus('Đang mở cửa sổ xác thực…');
-    document.getElementById('tnt-error').style.display = 'none';
-
-    // Mở popup — Apps Script sẽ đọc email (Execute as: User accessing the app)
-    // rồi postMessage kết quả về cửa sổ này
-    const w = 520, h = 620;
-    const left = Math.round(screen.width / 2 - w / 2);
-    const top  = Math.round(screen.height / 2 - h / 2);
-    const popup = window.open(
-      SCRIPT_URL + '?redirect=1',
-      'tnt_auth_popup',
-      `width=${w},height=${h},left=${left},top=${top}`
-    );
-
-    if (!popup || popup.closed) {
-      showError('Popup bị chặn. Vui lòng cho phép popup từ trang này và thử lại.');
+    const email = (document.getElementById('tnt-email-inp').value || '').trim().toLowerCase();
+    if (!email || !email.includes('@')) {
+      showError('Vui lòng nhập email hợp lệ.');
       return;
     }
+    document.getElementById('tnt-error').style.display = 'none';
+    setBtn(true);
+    setStatus('Đang xác thực với server…');
 
-    setStatus('Đang chờ xác thực trong cửa sổ mới…');
-
-    // Fallback: nếu popup đóng mà chưa nhận message (user tắt tay)
-    const guard = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(guard);
-        // Nếu vẫn chưa được grant thì báo timeout
-        if (document.getElementById('tnt-auth-gate').style.display !== 'none') {
-          setStatus('');
-          showError('Cửa sổ đăng nhập đã đóng. Vui lòng thử lại.');
-        }
-      }
-    }, 800);
+    // Redirect sang Apps Script?mode=verify&email=...&cb=<URL hiện tại>
+    const cb = encodeURIComponent(window.location.href.split('#')[0]);
+    window.location.href = SCRIPT_URL +
+      '?mode=verify' +
+      '&email=' + encodeURIComponent(email) +
+      '&cb=' + cb;
   };
 
+  // ── Đăng xuất ────────────────────────────────────────────
   window.tntLogout = function () {
-    sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(STORE_EMAIL);
+    sessionStorage.removeItem(STORE_TOKEN);
+    history.replaceState(null, '', window.location.pathname);
     location.reload();
   };
 
-  // Kiểm tra session còn trong tab
-  const saved = sessionStorage.getItem(SESSION_KEY);
-  if (saved) grantAccess(saved);
+  // ── Khởi động: kiểm tra hash → rồi session ───────────────
+  if (!checkHashToken()) {
+    const savedEmail = sessionStorage.getItem(STORE_EMAIL);
+    const savedToken = sessionStorage.getItem(STORE_TOKEN);
+    if (savedEmail && savedToken) {
+      grantAccess(savedEmail);
+    }
+  }
 })();
 </script>
 <!-- ============================================================ END AUTH ============================================================ -->
