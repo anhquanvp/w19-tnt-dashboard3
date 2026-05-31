@@ -193,7 +193,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 
 <script>
 (function () {
-  // ── CẤU HÌNH: thay link deploy của bạn vào đây ──────────
+  // ── CẤU HÌNH ────────────────────────────────────────────
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwkCNvEMY3H6bidk8KHmf4PYY8TSXhHFxDk3O-9wDVKbiJta0lScAIRC6_yHGf7lRw_dA/exec';
   // ────────────────────────────────────────────────────────
 
@@ -217,58 +217,66 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
     document.getElementById('tnt-user-email').textContent = email;
   }
 
+  // Lắng nghe postMessage từ popup (Apps Script gửi về sau khi xác thực)
+  window.addEventListener('message', function (event) {
+    // Chỉ nhận từ script.google.com
+    if (!event.origin.includes('google.com')) return;
+    try {
+      const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      if (!data.tnt_auth) return; // không phải message của mình
+      if (data.ok === true) {
+        grantAccess(data.email);
+      } else {
+        showError(
+          '<strong>Không có quyền truy cập.</strong><br>' +
+          'Email <em>' + (data.email || '?') + '</em> chưa được cấp quyền.<br>' +
+          'Liên hệ quản lý vùng để được thêm vào danh sách.'
+        );
+      }
+    } catch (e) { /* ignore parse errors */ }
+  });
+
   window.tntLogin = function () {
-    setStatus('Đang xác thực…');
+    setStatus('Đang mở cửa sổ xác thực…');
     document.getElementById('tnt-error').style.display = 'none';
 
-    // Mở popup Google login trỏ đến Apps Script, Apps Script tự lấy email
+    // Mở popup — Apps Script sẽ đọc email (Execute as: User accessing the app)
+    // rồi postMessage kết quả về cửa sổ này
+    const w = 520, h = 620;
+    const left = Math.round(screen.width / 2 - w / 2);
+    const top  = Math.round(screen.height / 2 - h / 2);
     const popup = window.open(
-      SCRIPT_URL + '?ds=auth',
+      SCRIPT_URL + '?redirect=1',
       'tnt_auth_popup',
-      'width=500,height=600,left=400,top=150'
+      `width=${w},height=${h},left=${left},top=${top}`
     );
 
-    // Polling kiểm tra popup đóng hoặc dữ liệu trả về
-    let attempts = 0;
-    const timer = setInterval(() => {
-      attempts++;
-      try {
-        if (popup.closed) {
-          clearInterval(timer);
-          // Sau khi popup đóng, gọi lại script để lấy kết quả
-          fetchAuth();
-        }
-      } catch (e) { /* cross-origin, bỏ qua */ }
-      if (attempts > 120) { clearInterval(timer); setStatus(''); } // timeout 60s
-    }, 500);
-  };
+    if (!popup || popup.closed) {
+      showError('Popup bị chặn. Vui lòng cho phép popup từ trang này và thử lại.');
+      return;
+    }
 
-  function fetchAuth() {
-    setStatus('Đang kiểm tra quyền…');
-    fetch(SCRIPT_URL + '?ds=auth', { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => {
-        if (data.auth) {
-          grantAccess(data.email);
-        } else {
-          showError(
-            '<strong>Không có quyền truy cập.</strong><br>' +
-            'Email <em>' + (data.email || '?') + '</em> chưa được cấp quyền.<br>' +
-            'Liên hệ quản lý vùng để được thêm vào danh sách.'
-          );
+    setStatus('Đang chờ xác thực trong cửa sổ mới…');
+
+    // Fallback: nếu popup đóng mà chưa nhận message (user tắt tay)
+    const guard = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(guard);
+        // Nếu vẫn chưa được grant thì báo timeout
+        if (document.getElementById('tnt-auth-gate').style.display !== 'none') {
+          setStatus('');
+          showError('Cửa sổ đăng nhập đã đóng. Vui lòng thử lại.');
         }
-      })
-      .catch(() => {
-        showError('Không kết nối được. Vui lòng thử lại.');
-      });
-  }
+      }
+    }, 800);
+  };
 
   window.tntLogout = function () {
     sessionStorage.removeItem(SESSION_KEY);
     location.reload();
   };
 
-  // Kiểm tra session cũ
+  // Kiểm tra session còn trong tab
   const saved = sessionStorage.getItem(SESSION_KEY);
   if (saved) grantAccess(saved);
 })();
