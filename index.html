@@ -229,34 +229,40 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
     document.getElementById('tnt-user-email').textContent = email;
   }
 
-  // Xử lý hash sau khi Apps Script redirect về
-  // Format: #tnt_ok=email&tnt_tok=TOKEN  hoặc  #tnt_deny=email
-  function checkHash() {
-    const hash = window.location.hash;
-    if (!hash.startsWith('#tnt_')) return false;
+  // Sau redirect từ GAS: #tnt_ok=...&tnt_tok=...  hoặc  #tnt_deny=...
+  function readAuthFromUrl() {
+    const raw = window.location.hash.slice(1);
+    if (!raw || (!raw.includes('tnt_ok=') && !raw.includes('tnt_deny='))) return null;
+    return new URLSearchParams(raw);
+  }
 
+  function clearAuthHash() {
     history.replaceState(null, '', window.location.pathname + window.location.search);
+  }
 
-    const params = {};
-    hash.slice(1).split('&').forEach(part => {
-      const idx = part.indexOf('=');
-      if (idx > -1) params[part.slice(0, idx)] = decodeURIComponent(part.slice(idx + 1));
-    });
+  function checkHash() {
+    const params = readAuthFromUrl();
+    if (!params) return false;
 
-    if (params.tnt_ok && params.tnt_tok) {
-      sessionStorage.setItem(STORE_EMAIL, params.tnt_ok);
-      sessionStorage.setItem(STORE_TOKEN, params.tnt_tok);
-      grantAccess(params.tnt_ok);
+    clearAuthHash();
+
+    const email = params.get('tnt_ok');
+    const token = params.get('tnt_tok');
+    if (email && token) {
+      sessionStorage.setItem(STORE_EMAIL, email);
+      sessionStorage.setItem(STORE_TOKEN, token);
+      grantAccess(email);
       return true;
     }
-    if (params.tnt_deny !== undefined) {
-      const email = params.tnt_deny;
-      if (email === 'no_email') {
-        showError('<strong>Không đọc được email.</strong><br>Vui lòng đảm bảo bạn đã đăng nhập tài khoản Google và thử lại.');
+
+    if (params.has('tnt_deny')) {
+      const denied = params.get('tnt_deny') || '';
+      if (denied === 'no_email') {
+        showError('<strong>Không đọc được email.</strong><br>Deploy Web App phải chọn <b>Execute as: User accessing the web app</b> và bạn cần đăng nhập Google.');
       } else {
         showError(
           '<strong>Không có quyền truy cập.</strong><br>' +
-          'Email <em>' + email + '</em> chưa được cấp quyền.<br>' +
+          'Email <em>' + denied.replace(/</g, '&lt;') + '</em> chưa có trong sheet Mail.<br>' +
           'Liên hệ quản lý vùng để được thêm vào danh sách.'
         );
       }
@@ -267,13 +273,18 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 
   // Nút đăng nhập: redirect sang Apps Script, script tự đọc email Google
   window.tntLogin = function () {
+    if (!SCRIPT_URL || SCRIPT_URL.indexOf('/macros/s/') < 0) {
+      showError('<strong>Chưa cấu hình SCRIPT_URL.</strong><br>Điền URL Web App sau khi Deploy trong Apps Script.');
+      return;
+    }
+
     document.getElementById('tnt-error').style.display = 'none';
     const btn = document.getElementById('tnt-btn');
     btn.disabled = true;
     btn.textContent = 'Đang chuyển hướng…';
     document.getElementById('tnt-status').textContent = 'Đang mở trang xác thực Google…';
 
-    const cb = encodeURIComponent(window.location.href.split('#')[0]);
+    const cb = encodeURIComponent(window.location.origin + window.location.pathname);
     window.location.href = SCRIPT_URL + '?mode=auth&cb=' + cb;
   };
 
@@ -283,11 +294,25 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
     location.reload();
   };
 
-  // Khởi động
-  if (!checkHash()) {
-    const email = sessionStorage.getItem(STORE_EMAIL);
-    const token = sessionStorage.getItem(STORE_TOKEN);
-    if (email && token) grantAccess(email);
+  // Khởi động: hash auth → session cũ → màn hình đăng nhập
+  if (checkHash()) return;
+
+  const email = sessionStorage.getItem(STORE_EMAIL);
+  const token = sessionStorage.getItem(STORE_TOKEN);
+  if (email && token) {
+    document.getElementById('tnt-status').textContent = 'Đang xác minh phiên…';
+    fetch(SCRIPT_URL + '?mode=data&ds=auth&token=' + encodeURIComponent(token))
+      .then(r => r.json())
+      .then(data => {
+        if (data && data.auth) {
+          grantAccess(data.email || email);
+        } else {
+          sessionStorage.removeItem(STORE_EMAIL);
+          sessionStorage.removeItem(STORE_TOKEN);
+          showError('<strong>Phiên hết hạn.</strong><br>Vui lòng đăng nhập lại.');
+        }
+      })
+      .catch(() => grantAccess(email));
   }
 })();
 </script>
