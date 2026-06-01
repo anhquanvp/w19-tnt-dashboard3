@@ -205,7 +205,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 <script>
 (function () {
   // ── CẤU HÌNH: điền URL deploy của script Apps Script ──
-  // Script phải deploy với "Execute as: User accessing the web app"
+  // Deploy Web App: Execute as "Me" + Who has access "Anyone" (hoặc Anyone with Google account)
   const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRHSBI7slmGWxeydxtGcp6av4Tn5YmNQI1wZwwRTQQMNP1zyaXa_rNQEke1F4M2zla/exec';
   // ──────────────────────────────────────────────────────
 
@@ -258,7 +258,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
     if (params.has('tnt_deny')) {
       const denied = params.get('tnt_deny') || '';
       if (denied === 'no_email') {
-        showError('<strong>Không đọc được email.</strong><br>Deploy Web App phải chọn <b>Execute as: User accessing the web app</b> và bạn cần đăng nhập Google.');
+        showError('<strong>Không đọc được email Google.</strong><br>Deploy phải là <b>Execute as: Me</b>. Lần đầu mở link, chấp nhận quyền khi Google hỏi, rồi đăng nhập lại.');
       } else {
         showError(
           '<strong>Không có quyền truy cập.</strong><br>' +
