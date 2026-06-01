@@ -186,122 +186,108 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 <div id="tnt-auth-gate">
   <div class="box">
     <div class="eyebrow">Vùng TNT · Báo cáo nội bộ</div>
-    <h2>Xác nhận quyền truy cập</h2>
-    <p class="sub">Nhập email được cấp quyền để xem báo cáo.</p>
-    <input id="tnt-email-inp" class="inp" type="email"
-           placeholder="email@ghn.vn"
-           onkeydown="if(event.key==='Enter')tntLogin()" />
+    <h2>Đăng nhập để xem</h2>
+    <p class="sub">Tài liệu nội bộ. Nhấn nút bên dưới và đăng nhập bằng Gmail được cấp quyền.</p>
     <button class="btn" id="tnt-btn" onclick="tntLogin()">
-      Xác nhận
+      <svg width="16" height="16" viewBox="0 0 48 48" style="flex-shrink:0">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Đăng nhập với Google
     </button>
     <div class="status" id="tnt-status"></div>
     <div class="error" id="tnt-error"></div>
-    <div class="hint">Token hợp lệ trong 6 giờ kể từ lần xác nhận.</div>
   </div>
 </div>
 
 <script>
 (function () {
-  // ── CẤU HÌNH ────────────────────────────────────────────
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwpidzW14S8A-ChMk7oTxHOssysdvoHIjGGlKP_lcWVAi1PaUbqNbiEhLYM1uo1RFNZmA/exec';
-  // ────────────────────────────────────────────────────────
+  // ── CẤU HÌNH: điền URL deploy của script Apps Script ──
+  // Script phải deploy với "Execute as: User accessing the web app"
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRHSBI7slmGWxeydxtGcp6av4Tn5YmNQI1wZwwRTQQMNP1zyaXa_rNQEke1F4M2zla/exec';
+  // ──────────────────────────────────────────────────────
 
   const STORE_EMAIL = 'tnt_email';
   const STORE_TOKEN = 'tnt_token';
 
-  // ── Helpers UI ───────────────────────────────────────────
-  function setStatus(msg) {
-    document.getElementById('tnt-status').textContent = msg;
-  }
   function showError(msg) {
     const el = document.getElementById('tnt-error');
     el.style.display = 'block';
     el.innerHTML = msg;
-    setStatus('');
-    setBtn(false);
-  }
-  function setBtn(loading) {
     const btn = document.getElementById('tnt-btn');
-    btn.disabled = loading;
-    btn.textContent = loading ? 'Đang kiểm tra…' : 'Xác nhận';
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Đăng nhập với Google';
+    document.getElementById('tnt-status').textContent = '';
   }
+
   function grantAccess(email) {
     document.getElementById('tnt-auth-gate').style.display = 'none';
     document.getElementById('report-content').style.display = 'block';
-    const bar = document.getElementById('tnt-logout-bar');
-    bar.style.display = 'flex';
+    document.getElementById('tnt-logout-bar').style.display = 'flex';
     document.getElementById('tnt-user-email').textContent = email;
   }
 
-  // ── Xử lý hash token từ redirect (Apps Script → HTML) ───
-  // Hash format: #tnt_ok=email&tnt_tok=TOKEN hoặc #tnt_deny=email
-  function checkHashToken() {
+  // Xử lý hash sau khi Apps Script redirect về
+  // Format: #tnt_ok=email&tnt_tok=TOKEN  hoặc  #tnt_deny=email
+  function checkHash() {
     const hash = window.location.hash;
     if (!hash.startsWith('#tnt_')) return false;
 
-    // Xoá khỏi URL ngay
     history.replaceState(null, '', window.location.pathname + window.location.search);
 
-    // Parse các params trong hash
     const params = {};
     hash.slice(1).split('&').forEach(part => {
-      const [k, v] = part.split('=');
-      params[k] = v ? decodeURIComponent(v) : '';
+      const idx = part.indexOf('=');
+      if (idx > -1) params[part.slice(0, idx)] = decodeURIComponent(part.slice(idx + 1));
     });
 
     if (params.tnt_ok && params.tnt_tok) {
-      // Lưu vào sessionStorage
       sessionStorage.setItem(STORE_EMAIL, params.tnt_ok);
       sessionStorage.setItem(STORE_TOKEN, params.tnt_tok);
       grantAccess(params.tnt_ok);
       return true;
     }
-    if (params.tnt_deny) {
+    if (params.tnt_deny !== undefined) {
       const email = params.tnt_deny;
-      showError(
-        '<strong>Không có quyền truy cập.</strong><br>' +
-        'Email <em>' + (email !== 'no_email' ? email : '(trống)') + '</em> chưa được cấp quyền.<br>' +
-        'Liên hệ quản lý vùng để được thêm vào danh sách.'
-      );
+      if (email === 'no_email') {
+        showError('<strong>Không đọc được email.</strong><br>Vui lòng đảm bảo bạn đã đăng nhập tài khoản Google và thử lại.');
+      } else {
+        showError(
+          '<strong>Không có quyền truy cập.</strong><br>' +
+          'Email <em>' + email + '</em> chưa được cấp quyền.<br>' +
+          'Liên hệ quản lý vùng để được thêm vào danh sách.'
+        );
+      }
       return true;
     }
     return false;
   }
 
-  // ── Nút Xác nhận: redirect sang Apps Script kèm email ───
+  // Nút đăng nhập: redirect sang Apps Script, script tự đọc email Google
   window.tntLogin = function () {
-    const email = (document.getElementById('tnt-email-inp').value || '').trim().toLowerCase();
-    if (!email || !email.includes('@')) {
-      showError('Vui lòng nhập email hợp lệ.');
-      return;
-    }
     document.getElementById('tnt-error').style.display = 'none';
-    setBtn(true);
-    setStatus('Đang xác thực với server…');
+    const btn = document.getElementById('tnt-btn');
+    btn.disabled = true;
+    btn.textContent = 'Đang chuyển hướng…';
+    document.getElementById('tnt-status').textContent = 'Đang mở trang xác thực Google…';
 
-    // Redirect sang Apps Script?mode=verify&email=...&cb=<URL hiện tại>
     const cb = encodeURIComponent(window.location.href.split('#')[0]);
-    window.location.href = SCRIPT_URL +
-      '?mode=verify' +
-      '&email=' + encodeURIComponent(email) +
-      '&cb=' + cb;
+    window.location.href = SCRIPT_URL + '?mode=auth&cb=' + cb;
   };
 
-  // ── Đăng xuất ────────────────────────────────────────────
   window.tntLogout = function () {
     sessionStorage.removeItem(STORE_EMAIL);
     sessionStorage.removeItem(STORE_TOKEN);
-    history.replaceState(null, '', window.location.pathname);
     location.reload();
   };
 
-  // ── Khởi động: kiểm tra hash → rồi session ───────────────
-  if (!checkHashToken()) {
-    const savedEmail = sessionStorage.getItem(STORE_EMAIL);
-    const savedToken = sessionStorage.getItem(STORE_TOKEN);
-    if (savedEmail && savedToken) {
-      grantAccess(savedEmail);
-    }
+  // Khởi động
+  if (!checkHash()) {
+    const email = sessionStorage.getItem(STORE_EMAIL);
+    const token = sessionStorage.getItem(STORE_TOKEN);
+    if (email && token) grantAccess(email);
   }
 })();
 </script>
