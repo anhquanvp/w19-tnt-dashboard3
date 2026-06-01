@@ -105,8 +105,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 <body>
 
 <!-- ============================================================
-  TNT REPORT AUTH v5
+  TNT REPORT AUTH v3 — Google Sign-In + sheet TNT_Mail_Whitelist
+  https://docs.google.com/spreadsheets/d/1UQ9P_GYZcQvc2ToIIgTrkv4lQqS7CrDYekbXE7XBsBM
+  Tab Mail · cột A từ dòng 5 (anhquan.94vp@gmail.com, quanpv@ghn.vn, …)
 ============================================================ -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   #tnt-auth-gate {
     position: fixed; inset: 0; z-index: 9999;
@@ -187,16 +190,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
   <div class="box">
     <div class="eyebrow">Vùng TNT · Báo cáo nội bộ</div>
     <h2>Đăng nhập để xem</h2>
-    <p class="sub">Tài liệu nội bộ. Nhấn nút bên dưới và đăng nhập bằng Gmail được cấp quyền.</p>
-    <button class="btn" id="tnt-btn" onclick="tntLogin()">
-      <svg width="16" height="16" viewBox="0 0 48 48" style="flex-shrink:0">
-        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-      </svg>
-      Đăng nhập với Google
-    </button>
+    <p class="sub">Đăng nhập Gmail được thêm vào sheet Mail (cột A từ dòng 5).</p>
+    <div id="tnt-google-btn" style="display:flex;justify-content:center;min-height:44px"></div>
     <div class="status" id="tnt-status"></div>
     <div class="error" id="tnt-error"></div>
   </div>
@@ -204,116 +199,228 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 
 <script>
 (function () {
-  // ── CẤU HÌNH: điền URL deploy của script Apps Script ──
-  // Deploy Web App: Execute as "Me" + Who has access "Anyone" (hoặc Anyone with Google account)
-  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRHSBI7slmGWxeydxtGcp6av4Tn5YmNQI1wZwwRTQQMNP1zyaXa_rNQEke1F4M2zla/exec';
-  // ──────────────────────────────────────────────────────
+  // ═══ CẤU HÌNH ═══════════════════════════════════════════════════
+  // OAuth Client ID (Web): https://console.cloud.google.com/apis/credentials
+  // Origins: https://<user>.github.io , http://localhost
+  const GOOGLE_CLIENT_ID = 'DIEN_CLIENT_ID.apps.googleusercontent.com';
 
-  const STORE_EMAIL = 'tnt_email';
-  const STORE_TOKEN = 'tnt_token';
+  // Sheet TNT_Mail_Whitelist — tab Mail, gid=1707439231
+  const WHITELIST = {
+    sheetId: '1UQ9P_GYZcQvc2ToIIgTrkv4lQqS7CrDYekbXE7XBsBM',
+    sheetGid: 1707439231,
+    sheetName: 'Mail',
+    startRow: 5,
+    endRow: 500,
+    // Đồng bộ với sheet (dùng khi chưa share link xem được)
+    fallback: [
+      { email: 'anhquan.94vp@gmail.com', name: 'Anh Quân' },
+      { email: 'quanpv@ghn.vn', name: 'Quân PV' }
+    ]
+  };
+  // Sheet phải: Chia sẻ → Bất kỳ ai có liên kết → Người xem
+  // ═════════════════════════════════════════════════════════════════
+
+  const STORE_EMAIL = 'tnt_email_v3';
+  const STORE_NAME  = 'tnt_name_v3';
+  let whitelistCache = null;
 
   function showError(msg) {
-    const el = document.getElementById('tnt-error');
-    el.style.display = 'block';
-    el.innerHTML = msg;
-    const btn = document.getElementById('tnt-btn');
-    btn.disabled = false;
-    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 48 48" style="flex-shrink:0"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Đăng nhập với Google';
+    document.getElementById('tnt-error').style.display = 'block';
+    document.getElementById('tnt-error').innerHTML = msg;
     document.getElementById('tnt-status').textContent = '';
   }
 
-  function grantAccess(email) {
+  function grantAccess(email, displayName) {
+    sessionStorage.setItem(STORE_EMAIL, email);
+    if (displayName) sessionStorage.setItem(STORE_NAME, displayName);
     document.getElementById('tnt-auth-gate').style.display = 'none';
     document.getElementById('report-content').style.display = 'block';
     document.getElementById('tnt-logout-bar').style.display = 'flex';
-    document.getElementById('tnt-user-email').textContent = email;
+    const label = displayName ? displayName + ' · ' + email : email;
+    document.getElementById('tnt-user-email').textContent = label;
   }
 
-  // Sau redirect từ GAS: #tnt_ok=...&tnt_tok=...  hoặc  #tnt_deny=...
-  function readAuthFromUrl() {
-    const raw = window.location.hash.slice(1);
-    if (!raw || (!raw.includes('tnt_ok=') && !raw.includes('tnt_deny='))) return null;
-    return new URLSearchParams(raw);
+  function parseGoogleJwt(credential) {
+    const payload = credential.split('.')[1];
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(json);
   }
 
-  function clearAuthHash() {
-    history.replaceState(null, '', window.location.pathname + window.location.search);
+  function isEmail(s) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
   }
 
-  function checkHash() {
-    const params = readAuthFromUrl();
-    if (!params) return false;
+  function gvizCell(cell) {
+    if (!cell) return '';
+    return String(cell.v != null ? cell.v : (cell.f || '')).trim();
+  }
 
-    clearAuthHash();
-
-    const email = params.get('tnt_ok');
-    const token = params.get('tnt_tok');
-    if (email && token) {
-      sessionStorage.setItem(STORE_EMAIL, email);
-      sessionStorage.setItem(STORE_TOKEN, token);
-      grantAccess(email);
-      return true;
-    }
-
-    if (params.has('tnt_deny')) {
-      const denied = params.get('tnt_deny') || '';
-      if (denied === 'no_email') {
-        showError('<strong>Không đọc được email Google.</strong><br>Deploy phải là <b>Execute as: Me</b>. Lần đầu mở link, chấp nhận quyền khi Google hỏi, rồi đăng nhập lại.');
-      } else {
-        showError(
-          '<strong>Không có quyền truy cập.</strong><br>' +
-          'Email <em>' + denied.replace(/</g, '&lt;') + '</em> chưa có trong sheet Mail.<br>' +
-          'Liên hệ quản lý vùng để được thêm vào danh sách.'
-        );
+  function parseGvizUsers(json) {
+    const rows = (json.table && json.table.rows) || [];
+    const emails = [];
+    const names = {};
+    const seen = {};
+    rows.forEach(row => {
+      const email = gvizCell(row.c && row.c[0]).toLowerCase();
+      const name = gvizCell(row.c && row.c[1]);
+      if (isEmail(email) && !seen[email]) {
+        seen[email] = true;
+        emails.push(email);
+        if (name) names[email] = name;
       }
-      return true;
-    }
-    return false;
+    });
+    return { emails, names };
   }
 
-  // Nút đăng nhập: redirect sang Apps Script, script tự đọc email Google
-  window.tntLogin = function () {
-    if (!SCRIPT_URL || SCRIPT_URL.indexOf('/macros/s/') < 0) {
-      showError('<strong>Chưa cấu hình SCRIPT_URL.</strong><br>Điền URL Web App sau khi Deploy trong Apps Script.');
+  function parseCsvUsers(csvText) {
+    const lines = csvText.split(/\r?\n/);
+    const emails = [];
+    const names = {};
+    const seen = {};
+    for (let i = WHITELIST.startRow - 1; i < lines.length; i++) {
+      const cols = lines[i].split(',');
+      const email = (cols[0] || '').replace(/^"|"$/g, '').toLowerCase().trim();
+      const name = (cols[1] || '').replace(/^"|"$/g, '').trim();
+      if (isEmail(email) && !seen[email]) {
+        seen[email] = true;
+        emails.push(email);
+        if (name) names[email] = name;
+      }
+    }
+    return { emails, names };
+  }
+
+  function fromFallback() {
+    const emails = [];
+    const names = {};
+    WHITELIST.fallback.forEach(u => {
+      const email = u.email.toLowerCase().trim();
+      if (isEmail(email)) {
+        emails.push(email);
+        if (u.name) names[email] = u.name;
+      }
+    });
+    return { emails, names };
+  }
+
+  function parseGvizResponse(text) {
+    const start = text.indexOf('{');
+    const end = text.lastIndexOf('}');
+    if (start < 0 || end < 0) throw new Error('Invalid gviz');
+    return JSON.parse(text.substring(start, end + 1));
+  }
+
+  async function fetchWhitelistFromSheet() {
+    const range = 'A' + WHITELIST.startRow + ':C' + WHITELIST.endRow;
+    const urls = [
+      'https://docs.google.com/spreadsheets/d/' + WHITELIST.sheetId
+        + '/gviz/tq?tqx=out:json&gid=' + WHITELIST.sheetGid + '&range=' + range,
+      'https://docs.google.com/spreadsheets/d/' + WHITELIST.sheetId
+        + '/gviz/tq?tqx=out:json&sheet=' + encodeURIComponent(WHITELIST.sheetName) + '&range=' + range,
+      'https://docs.google.com/spreadsheets/d/' + WHITELIST.sheetId
+        + '/export?format=csv&gid=' + WHITELIST.sheetGid
+    ];
+
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        const res = await fetch(urls[i], { cache: 'no-store' });
+        if (!res.ok) continue;
+        const text = await res.text();
+        if (i < 2) {
+          const users = parseGvizUsers(parseGvizResponse(text));
+          if (users.emails.length) return users;
+        } else {
+          const users = parseCsvUsers(text);
+          if (users.emails.length) return users;
+        }
+      } catch (e) { /* thử URL tiếp */ }
+    }
+    return fromFallback();
+  }
+
+  async function loadWhitelist() {
+    if (whitelistCache) return whitelistCache;
+    whitelistCache = await fetchWhitelistFromSheet();
+    return whitelistCache;
+  }
+
+  async function handleGoogleSignIn(response) {
+    document.getElementById('tnt-error').style.display = 'none';
+    document.getElementById('tnt-status').textContent = 'Đang kiểm tra danh sách Mail…';
+
+    let email;
+    try {
+      email = parseGoogleJwt(response.credential).email.toLowerCase().trim();
+    } catch (e) {
+      showError('<strong>Lỗi đăng nhập Google.</strong><br>Kiểm tra GOOGLE_CLIENT_ID và domain GitHub Pages.');
       return;
     }
 
-    document.getElementById('tnt-error').style.display = 'none';
-    const btn = document.getElementById('tnt-btn');
-    btn.disabled = true;
-    btn.textContent = 'Đang chuyển hướng…';
-    document.getElementById('tnt-status').textContent = 'Đang mở trang xác thực Google…';
+    const wl = await loadWhitelist();
+    if (!wl.emails.includes(email)) {
+      showError(
+        '<strong>Không có quyền truy cập.</strong><br>' +
+        'Email <em>' + email.replace(/</g, '&lt;') + '</em> chưa có trong ' +
+        '<a href="https://docs.google.com/spreadsheets/d/' + WHITELIST.sheetId + '/edit?gid=' + WHITELIST.sheetGid + '" ' +
+        'target="_blank" rel="noopener" style="color:#4b8fd0">sheet Mail</a> (cột A, từ dòng 5).'
+      );
+      return;
+    }
 
-    const cb = encodeURIComponent(window.location.origin + window.location.pathname);
-    window.location.href = SCRIPT_URL + '?mode=auth&cb=' + cb;
-  };
+    grantAccess(email, wl.names[email] || '');
+  }
+
+  function initGoogleButton() {
+    if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.indexOf('apps.googleusercontent.com') < 0) {
+      showError('<strong>Chưa cấu hình GOOGLE_CLIENT_ID.</strong><br>Tạo OAuth Client ID (Web) trên Google Cloud Console.');
+      return;
+    }
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleSignIn,
+      auto_select: false
+    });
+    google.accounts.id.renderButton(
+      document.getElementById('tnt-google-btn'),
+      { theme: 'filled_blue', size: 'large', text: 'signin_with', width: 300, locale: 'vi' }
+    );
+    document.getElementById('tnt-status').textContent = '';
+  }
 
   window.tntLogout = function () {
     sessionStorage.removeItem(STORE_EMAIL);
-    sessionStorage.removeItem(STORE_TOKEN);
+    sessionStorage.removeItem(STORE_NAME);
+    if (window.google && google.accounts && google.accounts.id) {
+      google.accounts.id.disableAutoSelect();
+    }
     location.reload();
   };
 
-  // Khởi động: hash auth → session cũ → màn hình đăng nhập
-  if (checkHash()) return;
+  async function boot() {
+    const saved = sessionStorage.getItem(STORE_EMAIL);
+    if (saved) {
+      const wl = await loadWhitelist();
+      if (wl.emails.includes(saved)) {
+        grantAccess(saved, sessionStorage.getItem(STORE_NAME) || wl.names[saved] || '');
+      } else {
+        sessionStorage.removeItem(STORE_EMAIL);
+        sessionStorage.removeItem(STORE_NAME);
+      }
+      return;
+    }
 
-  const email = sessionStorage.getItem(STORE_EMAIL);
-  const token = sessionStorage.getItem(STORE_TOKEN);
-  if (email && token) {
-    document.getElementById('tnt-status').textContent = 'Đang xác minh phiên…';
-    fetch(SCRIPT_URL + '?mode=data&ds=auth&token=' + encodeURIComponent(token))
-      .then(r => r.json())
-      .then(data => {
-        if (data && data.auth) {
-          grantAccess(data.email || email);
-        } else {
-          sessionStorage.removeItem(STORE_EMAIL);
-          sessionStorage.removeItem(STORE_TOKEN);
-          showError('<strong>Phiên hết hạn.</strong><br>Vui lòng đăng nhập lại.');
-        }
-      })
-      .catch(() => grantAccess(email));
+    const waitGsi = function () {
+      if (window.google && google.accounts && google.accounts.id) {
+        initGoogleButton();
+      } else {
+        document.getElementById('tnt-status').textContent = 'Đang tải đăng nhập Google…';
+        setTimeout(waitGsi, 120);
+      }
+    };
+    waitGsi();
   }
+
+  boot();
 })();
 </script>
 <!-- ============================================================ END AUTH ============================================================ -->
