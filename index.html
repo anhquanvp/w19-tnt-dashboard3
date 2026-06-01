@@ -105,11 +105,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 <body>
 
 <!-- ============================================================
-  TNT REPORT AUTH v3 — Google Sign-In + sheet TNT_Mail_Whitelist
-  https://docs.google.com/spreadsheets/d/1UQ9P_GYZcQvc2ToIIgTrkv4lQqS7CrDYekbXE7XBsBM
-  Tab Mail · cột A từ dòng 5 (anhquan.94vp@gmail.com, quanpv@ghn.vn, …)
+  TNT REPORT AUTH — chỉ email @ghn.vn
+  https://anhquanvp.github.io/w19-tnt-dashboard3/
 ============================================================ -->
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   #tnt-auth-gate {
     position: fixed; inset: 0; z-index: 9999;
@@ -190,8 +188,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
   <div class="box">
     <div class="eyebrow">Vùng TNT · Báo cáo nội bộ</div>
     <h2>Đăng nhập để xem</h2>
-    <p class="sub">Đăng nhập ngay tại trang này (không qua link script.google.com). Email phải có trong sheet Mail cột A từ dòng 5.</p>
-    <div id="tnt-google-btn" style="display:flex;justify-content:center;min-height:44px"></div>
+    <p class="sub">Báo cáo nội bộ GHN. Nhập email công ty <strong>@ghn.vn</strong> để xem.</p>
+    <div id="tnt-email-login" style="text-align:left">
+      <input type="email" id="tnt-email-inp" class="inp" placeholder="ten.ban@ghn.vn" autocomplete="email">
+      <button type="button" class="btn" style="margin-top:8px" onclick="tntEmailLogin()">Xem báo cáo</button>
+      <p class="hint" style="margin-top:10px">Ví dụ: quanpv@ghn.vn — chỉ chấp nhận đuôi @ghn.vn</p>
+    </div>
     <div class="status" id="tnt-status"></div>
     <div class="error" id="tnt-error"></div>
   </div>
@@ -199,30 +201,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
 
 <script>
 (function () {
-  // ═══ CẤU HÌNH ═══════════════════════════════════════════════════
-  // OAuth Client ID (Web): https://console.cloud.google.com/apis/credentials
-  // Origins: https://<user>.github.io , http://localhost
-  const GOOGLE_CLIENT_ID = 'DIEN_CLIENT_ID.apps.googleusercontent.com';
-
-  // Sheet TNT_Mail_Whitelist — tab Mail, gid=1707439231
-  const WHITELIST = {
-    sheetId: '1UQ9P_GYZcQvc2ToIIgTrkv4lQqS7CrDYekbXE7XBsBM',
-    sheetGid: 1707439231,
-    sheetName: 'Mail',
-    startRow: 5,
-    endRow: 500,
-    // Đồng bộ với sheet (dùng khi chưa share link xem được)
-    fallback: [
-      { email: 'anhquan.94vp@gmail.com', name: 'Anh Quân' },
-      { email: 'quanpv@ghn.vn', name: 'Quân PV' }
-    ]
-  };
-  // Sheet phải: Chia sẻ → Bất kỳ ai có liên kết → Người xem
-  // ═════════════════════════════════════════════════════════════════
-
-  const STORE_EMAIL = 'tnt_email_v3';
-  const STORE_NAME  = 'tnt_name_v3';
-  let whitelistCache = null;
+  const ALLOWED_DOMAIN = '@ghn.vn';
+  const STORE_EMAIL = 'tnt_email_ghn';
 
   function showError(msg) {
     document.getElementById('tnt-error').style.display = 'block';
@@ -230,226 +210,73 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
     document.getElementById('tnt-status').textContent = '';
   }
 
-  function grantAccess(email, displayName) {
-    sessionStorage.setItem(STORE_EMAIL, email);
-    if (displayName) sessionStorage.setItem(STORE_NAME, displayName);
-    document.getElementById('tnt-auth-gate').style.display = 'none';
-    document.getElementById('report-content').style.display = 'block';
-    document.getElementById('tnt-logout-bar').style.display = 'flex';
-    const label = displayName ? displayName + ' · ' + email : email;
-    document.getElementById('tnt-user-email').textContent = label;
-  }
-
-  function parseGoogleJwt(credential) {
-    const payload = credential.split('.')[1];
-    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(json);
-  }
-
   function isEmail(s) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
   }
 
-  function gvizCell(cell) {
-    if (!cell) return '';
-    return String(cell.v != null ? cell.v : (cell.f || '')).trim();
+  function isAllowedEmail(email) {
+    return isEmail(email) && email.toLowerCase().endsWith(ALLOWED_DOMAIN);
   }
 
-  function parseGvizUsers(json) {
-    const rows = (json.table && json.table.rows) || [];
-    const emails = [];
-    const names = {};
-    const seen = {};
-    rows.forEach(row => {
-      const email = gvizCell(row.c && row.c[0]).toLowerCase();
-      const name = gvizCell(row.c && row.c[1]);
-      if (isEmail(email) && !seen[email]) {
-        seen[email] = true;
-        emails.push(email);
-        if (name) names[email] = name;
-      }
-    });
-    return { emails, names };
+  function grantAccess(email) {
+    sessionStorage.setItem(STORE_EMAIL, email);
+    document.getElementById('tnt-auth-gate').style.display = 'none';
+    document.getElementById('report-content').style.display = 'block';
+    document.getElementById('tnt-logout-bar').style.display = 'flex';
+    document.getElementById('tnt-user-email').textContent = email;
   }
 
-  function parseCsvUsers(csvText) {
-    const lines = csvText.split(/\r?\n/);
-    const emails = [];
-    const names = {};
-    const seen = {};
-    for (let i = WHITELIST.startRow - 1; i < lines.length; i++) {
-      const cols = lines[i].split(',');
-      const email = (cols[0] || '').replace(/^"|"$/g, '').toLowerCase().trim();
-      const name = (cols[1] || '').replace(/^"|"$/g, '').trim();
-      if (isEmail(email) && !seen[email]) {
-        seen[email] = true;
-        emails.push(email);
-        if (name) names[email] = name;
-      }
-    }
-    return { emails, names };
-  }
-
-  function fromFallback() {
-    const emails = [];
-    const names = {};
-    WHITELIST.fallback.forEach(u => {
-      const email = u.email.toLowerCase().trim();
-      if (isEmail(email)) {
-        emails.push(email);
-        if (u.name) names[email] = u.name;
-      }
-    });
-    return { emails, names };
-  }
-
-  function parseGvizResponse(text) {
-    const start = text.indexOf('{');
-    const end = text.lastIndexOf('}');
-    if (start < 0 || end < 0) throw new Error('Invalid gviz');
-    return JSON.parse(text.substring(start, end + 1));
-  }
-
-  async function fetchWhitelistFromSheet() {
-    const range = 'A' + WHITELIST.startRow + ':C' + WHITELIST.endRow;
-    const urls = [
-      'https://docs.google.com/spreadsheets/d/' + WHITELIST.sheetId
-        + '/gviz/tq?tqx=out:json&gid=' + WHITELIST.sheetGid + '&range=' + range,
-      'https://docs.google.com/spreadsheets/d/' + WHITELIST.sheetId
-        + '/gviz/tq?tqx=out:json&sheet=' + encodeURIComponent(WHITELIST.sheetName) + '&range=' + range,
-      'https://docs.google.com/spreadsheets/d/' + WHITELIST.sheetId
-        + '/export?format=csv&gid=' + WHITELIST.sheetGid
-    ];
-
-    for (let i = 0; i < urls.length; i++) {
-      try {
-        const res = await fetch(urls[i], { cache: 'no-store' });
-        if (!res.ok) continue;
-        const text = await res.text();
-        if (i < 2) {
-          const users = parseGvizUsers(parseGvizResponse(text));
-          if (users.emails.length) return users;
-        } else {
-          const users = parseCsvUsers(text);
-          if (users.emails.length) return users;
-        }
-      } catch (e) { /* thử URL tiếp */ }
-    }
-    return fromFallback();
-  }
-
-  async function loadWhitelist() {
-    if (whitelistCache) return whitelistCache;
-    whitelistCache = await fetchWhitelistFromSheet();
-    return whitelistCache;
-  }
-
-  async function handleGoogleSignIn(response) {
-    document.getElementById('tnt-error').style.display = 'none';
-    document.getElementById('tnt-status').textContent = 'Đang kiểm tra danh sách Mail…';
-
-    let email;
-    try {
-      email = parseGoogleJwt(response.credential).email.toLowerCase().trim();
-    } catch (e) {
-      showError('<strong>Lỗi đăng nhập Google.</strong><br>Kiểm tra GOOGLE_CLIENT_ID và domain GitHub Pages.');
-      return;
-    }
-
-    const wl = await loadWhitelist();
-    if (!wl.emails.includes(email)) {
-      showError(
-        '<strong>Không có quyền truy cập.</strong><br>' +
-        'Email <em>' + email.replace(/</g, '&lt;') + '</em> chưa có trong ' +
-        '<a href="https://docs.google.com/spreadsheets/d/' + WHITELIST.sheetId + '/edit?gid=' + WHITELIST.sheetGid + '" ' +
-        'target="_blank" rel="noopener" style="color:#4b8fd0">sheet Mail</a> (cột A, từ dòng 5).'
-      );
-      return;
-    }
-
-    grantAccess(email, wl.names[email] || '');
-  }
-
-  function initGoogleButton() {
-    if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID.indexOf('apps.googleusercontent.com') < 0) {
-      showError('<strong>Chưa cấu hình GOOGLE_CLIENT_ID.</strong><br>Tạo OAuth Client ID (Web) trên Google Cloud Console.');
-      return;
-    }
-    google.accounts.id.initialize({
-      client_id: GOOGLE_CLIENT_ID,
-      callback: handleGoogleSignIn,
-      auto_select: false
-    });
-    google.accounts.id.renderButton(
-      document.getElementById('tnt-google-btn'),
-      { theme: 'filled_blue', size: 'large', text: 'signin_with', width: 300, locale: 'vi' }
+  function denyEmail(email) {
+    showError(
+      '<strong>Không có quyền truy cập.</strong><br>' +
+      'Email <em>' + String(email).replace(/</g, '&lt;') + '</em> không thuộc công ty.<br>' +
+      'Chỉ email <strong>' + ALLOWED_DOMAIN + '</strong> được xem báo cáo.'
     );
-    document.getElementById('tnt-status').textContent = '';
   }
+
+  window.tntEmailLogin = function () {
+    document.getElementById('tnt-error').style.display = 'none';
+    const email = (document.getElementById('tnt-email-inp').value || '').toLowerCase().trim();
+    if (!isEmail(email)) {
+      showError('Nhập đúng định dạng email.');
+      return;
+    }
+    if (!isAllowedEmail(email)) {
+      denyEmail(email);
+      return;
+    }
+    grantAccess(email);
+  };
 
   window.tntLogout = function () {
     sessionStorage.removeItem(STORE_EMAIL);
-    sessionStorage.removeItem(STORE_NAME);
-    if (window.google && google.accounts && google.accounts.id) {
-      google.accounts.id.disableAutoSelect();
-    }
     location.reload();
   };
 
-  // Hỗ trợ redirect cũ từ GAS (#tnt_ok=...&tnt_tok=...)
-  function tryLegacyGasHash() {
-    const raw = window.location.hash.slice(1);
-    if (!raw || (!raw.includes('tnt_ok=') && !raw.includes('tnt_deny='))) return false;
-    const p = new URLSearchParams(raw);
-    history.replaceState(null, '', window.location.pathname + window.location.search);
-    const email = p.get('tnt_ok');
-    if (email) {
-      grantAccess(email.toLowerCase().trim(), '');
-      loadWhitelist().then(wl => {
-        if (wl.names[email]) {
-          sessionStorage.setItem(STORE_NAME, wl.names[email]);
-          document.getElementById('tnt-user-email').textContent =
-            wl.names[email] + ' · ' + email;
-        }
-      });
-      return true;
-    }
-    if (p.has('tnt_deny')) {
-      const d = p.get('tnt_deny') || '';
-      showError(d === 'no_email'
-        ? '<strong>Không đọc được email.</strong><br>Dùng nút Google bên dưới trên trang GitHub — không mở link Apps Script.'
-        : '<strong>Không có quyền.</strong><br>Email <em>' + d + '</em> chưa có trong sheet Mail.');
-      return true;
-    }
-    return false;
-  }
+  function boot() {
+    const inp = document.getElementById('tnt-email-inp');
+    inp.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') tntEmailLogin();
+    });
 
-  async function boot() {
-    if (tryLegacyGasHash()) return;
-
-    const saved = sessionStorage.getItem(STORE_EMAIL);
-    if (saved) {
-      const wl = await loadWhitelist();
-      if (wl.emails.includes(saved)) {
-        grantAccess(saved, sessionStorage.getItem(STORE_NAME) || wl.names[saved] || '');
-      } else {
-        sessionStorage.removeItem(STORE_EMAIL);
-        sessionStorage.removeItem(STORE_NAME);
+    const hash = window.location.hash.slice(1);
+    if (hash.includes('tnt_ok=')) {
+      const email = (new URLSearchParams(hash).get('tnt_ok') || '').toLowerCase().trim();
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+      if (isAllowedEmail(email)) {
+        grantAccess(email);
+        return;
       }
+      if (email) denyEmail(email);
       return;
     }
 
-    loadWhitelist().catch(function () {});
-
-    const waitGsi = function () {
-      if (window.google && google.accounts && google.accounts.id) {
-        initGoogleButton();
-      } else {
-        document.getElementById('tnt-status').textContent = 'Đang tải đăng nhập Google…';
-        setTimeout(waitGsi, 120);
-      }
-    };
-    waitGsi();
+    const saved = sessionStorage.getItem(STORE_EMAIL);
+    if (saved && isAllowedEmail(saved)) {
+      grantAccess(saved);
+      return;
+    }
+    if (saved) sessionStorage.removeItem(STORE_EMAIL);
   }
 
   boot();
