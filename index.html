@@ -296,9 +296,62 @@
   #dataSourceBanner.warn {
     background: var(--warning-bg); border-color: #FFB74D; color: #E65100;
   }
+
+  #authGate {
+    position: fixed; inset: 0; z-index: 10000;
+    background: #F5F5F5;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Be Vietnam Pro', sans-serif;
+  }
+  #authGate .auth-box {
+    background: white; border-radius: 12px; padding: 32px;
+    max-width: 380px; width: 90%; box-shadow: var(--shadow-lg);
+    text-align: center;
+  }
+  #authGate h2 { font-size: 18px; margin-bottom: 8px; }
+  #authGate p { font-size: 12px; color: var(--ghn-gray); margin-bottom: 20px; line-height: 1.6; }
+  #authGate .auth-btn {
+    display: block; width: 100%; padding: 12px;
+    background: var(--ghn-orange); color: white; border: none;
+    border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+  }
+  #authGate .auth-btn:hover { background: #FF8500; }
+  #authGate .auth-err {
+    display: none; margin-top: 14px; padding: 10px;
+    background: var(--danger-bg); color: var(--danger);
+    border-radius: 8px; font-size: 12px; text-align: left;
+  }
+  #logoutBar {
+    display: none; background: white; border-bottom: 1px solid var(--border);
+    padding: 6px 32px; font-size: 11px; color: var(--ghn-gray);
+    justify-content: space-between; align-items: center;
+  }
+  #logoutBar button {
+    border: 1px solid var(--border); background: white; border-radius: 6px;
+    padding: 4px 12px; font-size: 11px; cursor: pointer; font-family: inherit;
+  }
+  #reportApp { display: none; }
 </style>
 </head>
 <body>
+
+<div id="authGate">
+  <div class="auth-box">
+    <div class="logo-box" style="margin:0 auto 16px;width:48px;height:48px;font-size:15px">GHN</div>
+    <h2>Báo cáo trả hàng nội bộ</h2>
+    <p>Đăng nhập tài khoản Google <strong>@ghn.vn</strong> để xem dữ liệu sheet (tôn trọng cột/tuần đã ẩn).</p>
+    <button type="button" class="auth-btn" id="btnGasLogin">Đăng nhập Google (@ghn.vn)</button>
+    <div class="auth-err" id="authErr"></div>
+  </div>
+</div>
+
+<div id="logoutBar">
+  <span>🔒 <strong id="userEmailLabel"></strong></span>
+  <button type="button" id="btnLogout">Đăng xuất</button>
+</div>
+
+<div id="reportApp">
 
 <div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
@@ -493,14 +546,17 @@
 
 </div><!-- /main -->
 
+</div><!-- /reportApp -->
+
 <script>
 // ============================================================
 // CẤU HÌNH – Sheet Report (A59:P64, A3:P19, A21:P37, A40:P56)
 // ============================================================
 const SHEET_ID = '1S38OOgm9DGxfIH9GENZvTtoAq8bATlwKADEaCo3Du-E';
-/** Dán URL Web App GAS (file "GAS đăng nhập báo cáo") để tôn trọng cột/tuần đã ẩn trên sheet */
-const GAS_URL = '';
+/** Web App — file GAS đăng nhập báo cáo (Deploy Execute as: Me, Anyone) */
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbw37A14oQdwhyqWZNX7X5I40EadJJZ1WAe9qHYdhQC2MrV_UgJdjkAEDH99r38ac1A8dQ/exec';
 const GAS_TOKEN_KEY = 'ghn_return_tok';
+const GAS_EMAIL_KEY = 'ghn_return_email';
 
 let DAILY = [];
 let AM_DATA = {};
@@ -513,23 +569,121 @@ let OVERVIEW_ROWS = [];
 let DATA_VIA_GAS = false;
 
 // ============================================================
+// AUTH + GAS API
+// ============================================================
+function gasJsonp(params) {
+  return new Promise((resolve, reject) => {
+    const cb = '_tntGas_' + Date.now();
+    const q = Object.assign({}, params, { callback: cb });
+    const url = GAS_URL.replace(/\/$/, '') + '?' + new URLSearchParams(q).toString();
+    const timer = setTimeout(() => { cleanup(); reject(new Error('GAS timeout')); }, 60000);
+    let script;
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cb];
+      if (script && script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cb] = function (data) { cleanup(); resolve(data); };
+    script = document.createElement('script');
+    script.src = url;
+    script.onerror = function () { cleanup(); reject(new Error('Không kết nối được GAS')); };
+    document.head.appendChild(script);
+  });
+}
+
+async function gasApi(params) {
+  const qs = new URLSearchParams(params).toString();
+  const url = GAS_URL.replace(/\/$/, '') + '?' + qs;
+  try {
+    const res = await fetch(url);
+    const text = await res.text();
+    if (text.trim().charAt(0) === '{') return JSON.parse(text);
+  } catch (e) { /* fallback JSONP */ }
+  return gasJsonp(params);
+}
+
+function parseAuthFromHash() {
+  const raw = location.hash.slice(1);
+  if (!raw) return;
+  const p = new URLSearchParams(raw);
+  const tok = p.get('tnt_tok');
+  const ok = p.get('tnt_ok');
+  const deny = p.get('tnt_deny');
+  history.replaceState(null, '', location.pathname + location.search);
+  if (tok) sessionStorage.setItem(GAS_TOKEN_KEY, tok);
+  if (ok) sessionStorage.setItem(GAS_EMAIL_KEY, ok.toLowerCase());
+  if (deny) {
+    const msg = deny === 'no_email'
+      ? 'Không đọc được email Google. Deploy GAS với <strong>Execute as: Me</strong>.'
+      : 'Email <em>' + deny + '</em> không phải @ghn.vn';
+    showAuthError(msg);
+  }
+}
+
+function showAuthError(html) {
+  const el = document.getElementById('authErr');
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML = html;
+}
+
+function showReportApp(email) {
+  document.getElementById('authGate').style.display = 'none';
+  document.getElementById('reportApp').style.display = 'block';
+  document.getElementById('logoutBar').style.display = 'flex';
+  if (email) document.getElementById('userEmailLabel').textContent = email;
+}
+
+function requireAuth() {
+  parseAuthFromHash();
+  const token = sessionStorage.getItem(GAS_TOKEN_KEY);
+  const email = sessionStorage.getItem(GAS_EMAIL_KEY);
+  if (token && email) {
+    showReportApp(email);
+    return true;
+  }
+  sessionStorage.removeItem(GAS_TOKEN_KEY);
+  sessionStorage.removeItem(GAS_EMAIL_KEY);
+  document.getElementById('authGate').style.display = 'flex';
+  return false;
+}
+
+function loginViaGas() {
+  const base = location.href.split('#')[0];
+  const cb = encodeURIComponent(base);
+  location.href = GAS_URL.replace(/\/$/, '') + '?mode=auth&cb=' + cb;
+}
+
+function logoutReport() {
+  sessionStorage.removeItem(GAS_TOKEN_KEY);
+  sessionStorage.removeItem(GAS_EMAIL_KEY);
+  location.reload();
+}
+
+// ============================================================
 // LOAD DATA
 // ============================================================
 async function loadReportData() {
   const token = sessionStorage.getItem(GAS_TOKEN_KEY);
   if (GAS_URL && token) {
     try {
-      const url = GAS_URL + (GAS_URL.indexOf('?') >= 0 ? '&' : '?')
-        + 'mode=data&ds=return&token=' + encodeURIComponent(token);
-      const res = await fetch(url);
-      const json = await res.json();
+      const json = await gasApi({ mode: 'data', ds: 'return', token: token });
       if (json.auth && json.data && !json.data.error) {
         applyReportPayload(json.data);
         DATA_VIA_GAS = true;
         showDataBanner(false);
         return;
       }
-    } catch (e) { console.warn('GAS fetch failed', e); }
+      if (json.error || (json.data && json.data.error)) {
+        throw new Error(json.error || json.data.error);
+      }
+    } catch (e) {
+      console.warn('GAS failed', e);
+      if (e.message && e.message.indexOf('Token') >= 0) {
+        logoutReport();
+        return;
+      }
+    }
   }
   const payload = await fetchReportViaGviz();
   applyReportPayload(payload);
@@ -1149,9 +1303,14 @@ function switchTab(tab) {
 // ============================================================
 // INIT
 // ============================================================
+document.getElementById('btnGasLogin').addEventListener('click', loginViaGas);
+document.getElementById('btnLogout').addEventListener('click', logoutReport);
+
 window.addEventListener('load', async () => {
   const now = new Date();
   document.getElementById('currentDate').textContent = now.toLocaleDateString('vi-VN', {weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+  if (!requireAuth()) return;
 
   try {
     await loadReportData();
