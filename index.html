@@ -190,7 +190,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
   <div class="box">
     <div class="eyebrow">Vùng TNT · Báo cáo nội bộ</div>
     <h2>Đăng nhập để xem</h2>
-    <p class="sub">Đăng nhập Gmail được thêm vào sheet Mail (cột A từ dòng 5).</p>
+    <p class="sub">Đăng nhập ngay tại trang này (không qua link script.google.com). Email phải có trong sheet Mail cột A từ dòng 5.</p>
     <div id="tnt-google-btn" style="display:flex;justify-content:center;min-height:44px"></div>
     <div class="status" id="tnt-status"></div>
     <div class="error" id="tnt-error"></div>
@@ -396,7 +396,37 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
     location.reload();
   };
 
+  // Hỗ trợ redirect cũ từ GAS (#tnt_ok=...&tnt_tok=...)
+  function tryLegacyGasHash() {
+    const raw = window.location.hash.slice(1);
+    if (!raw || (!raw.includes('tnt_ok=') && !raw.includes('tnt_deny='))) return false;
+    const p = new URLSearchParams(raw);
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    const email = p.get('tnt_ok');
+    if (email) {
+      grantAccess(email.toLowerCase().trim(), '');
+      loadWhitelist().then(wl => {
+        if (wl.names[email]) {
+          sessionStorage.setItem(STORE_NAME, wl.names[email]);
+          document.getElementById('tnt-user-email').textContent =
+            wl.names[email] + ' · ' + email;
+        }
+      });
+      return true;
+    }
+    if (p.has('tnt_deny')) {
+      const d = p.get('tnt_deny') || '';
+      showError(d === 'no_email'
+        ? '<strong>Không đọc được email.</strong><br>Dùng nút Google bên dưới trên trang GitHub — không mở link Apps Script.'
+        : '<strong>Không có quyền.</strong><br>Email <em>' + d + '</em> chưa có trong sheet Mail.');
+      return true;
+    }
+    return false;
+  }
+
   async function boot() {
+    if (tryLegacyGasHash()) return;
+
     const saved = sessionStorage.getItem(STORE_EMAIL);
     if (saved) {
       const wl = await loadWhitelist();
@@ -408,6 +438,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13
       }
       return;
     }
+
+    loadWhitelist().catch(function () {});
 
     const waitGsi = function () {
       if (window.google && google.accounts && google.accounts.id) {
